@@ -1,5 +1,39 @@
+Multicollinearity Tools
+=======================
+
+This package provides robust tools for identifying and removing multicollinearity in predictors, both numeric and categorical. It includes VIF-based filtering, correlation pruning, and hierarchical clustering for categorical variables based on Cramer's V.
+
+Features
+--------
+
+- Removes multicollinear numeric features using correlation and VIF filtering
+- Groups highly related features into clusters and selects representative features
+- Handles NA values and ties intelligently
+- Categorical variable reduction using Cramer's V and hierarchical clustering
+- Dendrogram visualizations before and after selection
+
+Usage
+-----
+
+### Numeric Feature Filtering
+
+    clean <- remove_cont_multicollinearity(
+      data,
+      target = "TargetColumn",
+      cor_threshold = 0.7,
+      vif_threshold = 5
+    )
+
+### Categorical Feature Filtering
+
+    reduced_factors <- factor_remove_collinearity(
+      df,
+      target_col = "TargetColumn",
+      k = 5
+    )
+
 GLMMPreprocessor
-=================
+================
 
 GLMMPreprocessor is an R6-based package for preprocessing data and performing stepwise BIC-guided feature selection for Generalized Linear Mixed Models (GLMMs). It includes tools for data splitting, scaling, polynomial and interaction term modeling, and marginal effect visualization.
 
@@ -13,16 +47,6 @@ Features
 - Stepwise BIC feature selection using `glmer` or `glm`
 - Support for polynomial terms and interactions
 - Visualizations for 1D and 2D marginal effects
-
-Installation
-------------
-
-To install the development version directly from GitHub:
-
-    # install.packages("remotes") if not already installed
-    remotes::install_github("YOUR_USERNAME/GLMMPreprocessor")
-
-Replace "YOUR_USERNAME" with your actual GitHub username.
 
 Quick Start
 -----------
@@ -78,3 +102,4 @@ License
 -------
 
 MIT © Alexander Chernikov
+
