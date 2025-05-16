@@ -2,8 +2,8 @@
 
 export("%||%")
 export(GLMMPreprocessor)
-export(factor_remove_collinearity)
 export(remove_cont_multicollinearity)
+export(remove_factor_multicollinearity)
 importFrom(DescTools,CramerV)
 importFrom(FactoMineR,PCA)
 importFrom(R6,R6Class)
