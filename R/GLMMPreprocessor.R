@@ -503,8 +503,8 @@ remove_cont_multicollinearity <- function(
     cor_threshold        = 0.70,
     vif_threshold        = 5,
     verbose              = TRUE,
-    keep_cols            = character(),
     drop_cols            = character(),
+    keep_cols            = character(),
     draw_corr            = FALSE
 ) {
   # --------------------------------------------------------
@@ -543,9 +543,27 @@ remove_cont_multicollinearity <- function(
     data <- data[, setdiff(names(data), drop_cols), drop = FALSE]
     if (verbose) message("Dropped user-specified columns: ", paste(drop_cols, collapse = ", "))
   }
+  #--------------------------------------------------
+  # 1.5) Warn for columns that are neither numeric nor factor
+  #--------------------------------------------------
+  not_num_or_factor <- names(data)[sapply(data, function(x) !is.numeric(x) && !is.factor(x))]
+  all_ignored <- union(drop_cols, target)
+  not_num_or_factor <- setdiff(not_num_or_factor, all_ignored)
+  if (length(not_num_or_factor) > 0 && verbose) {
+    warning(paste0("Variables that are neither numeric nor factor: ", paste(not_num_or_factor, collapse = ", "), "\n"))
+  }
 
   target_vec <- data[[target]]
   df_preds   <- data[, setdiff(names(data), target), drop = FALSE]
+
+  # -- New: Remove non-numeric predictors --
+  non_numeric_cols <- names(df_preds)[!sapply(df_preds, is.numeric)]
+  if (length(non_numeric_cols) > 0 && verbose) {
+    warning(paste0("Pruning non-numeric predictors: ", paste(non_numeric_cols, collapse = ", "), "\n"))
+  }
+  df_preds <- df_preds[, sapply(df_preds, is.numeric), drop = FALSE]
+
+
   # keep only numeric with variation
   df_preds   <- df_preds[, sapply(df_preds, is.numeric), drop = FALSE]
   df_preds   <- df_preds[, sapply(df_preds, function(x) {
@@ -668,9 +686,9 @@ remove_cont_multicollinearity <- function(
         others = paste(variable[removed], collapse = ", "),
         .groups = "drop"
       )
-    message("\nCluster summary (chosen / others):")
+    message("\nFeature Group summary (chosen / others):")
     apply(cluster_summary, 1, function(row) {
-      msg <- paste0("  Cluster ", row["cluster"], ": ",
+      msg <- paste0("  Feature Group ", row["cluster"], ": ",
                     row["chosen"],
                     if (nzchar(row["others"])) paste0("  /  ", row["others"]) else "")
       message(msg)
@@ -699,16 +717,30 @@ remove_cont_multicollinearity <- function(
     }
   }
 
-  list(pruned_data = pruned_data, cluster_df = df_clusters)
+
+  #--------------------------------------------------
+  # 6) Final summary & return
+  #--------------------------------------------------
+  if (verbose) {
+    original_cols <- setdiff(names(data), c(target, drop_cols))
+    numeric_cols <- names(data[, original_cols])[sapply(data[, original_cols], is.numeric)]
+    cat("\nBefore:", length(numeric_cols), "numeric cols;",
+        "After:", ncol(df_preds), "retained.\n")
+    cat("Retained columns:\n")
+    print(colnames(df_preds))
+  }
+
+  invisible(list(pruned_data = pruned_data, cluster_df = df_clusters))
 }
 
 #' @export
-factor_remove_collinearity <- function(
+remove_factor_multicollinearity <- function(
     df,
     target_col     = "Likelihood_to_Recommend__Relationship",
     drop_cols      = "date",
     keep_cols      = character(),
-    k              = 5
+    k              = 5,
+    verbose        = TRUE
 ) {
   #--------------------------------------------------
   # 0) Prep: require packages
@@ -721,23 +753,54 @@ factor_remove_collinearity <- function(
   }
 
   #--------------------------------------------------
+  # 0.1) Drop user-specified columns
+  #--------------------------------------------------
+  if (length(drop_cols) > 0 && verbose) {
+    message("Dropped user-specified columns: ", paste(drop_cols, collapse = ", "))
+  }
+  df <- df[, setdiff(names(df), drop_cols), drop = FALSE]
+
+  #--------------------------------------------------
+  # 0.5) Prune numeric predictors (we only want factors)
+  #--------------------------------------------------
+  numeric_preds <- setdiff(
+    names(df)[sapply(df, is.numeric)],
+    target_col
+  )
+  if (length(numeric_preds) > 0 && verbose) {
+    message(
+      "Pruning numeric predictors: ",
+      paste(numeric_preds, collapse = ", ")
+    )
+  }
+  df <- df[, setdiff(names(df), numeric_preds), drop = FALSE]
+
+  #--------------------------------------------------
   # 1) Create factor-only data (exclude numeric target)
   #--------------------------------------------------
-  model_data <- df %>%
-    dplyr::select(all_of(target_col), where(~ !is.numeric(.)))
-  if (!is.null(drop_cols)) {
-    model_data <- model_data %>% dplyr::select(-any_of(drop_cols))
-  }
+  model_data  <- df %>% dplyr::select(all_of(target_col), where(~ !is.numeric(.)))
   factor_data <- model_data %>% dplyr::select(-all_of(target_col))
+
+  #--------------------------------------------------
+  # 1.5) Prune any remaining non-factor predictors
+  #--------------------------------------------------
+  non_factor_cols <- names(factor_data)[!sapply(factor_data, is.factor)]
+  if (length(non_factor_cols) > 0 && verbose) {
+    message(
+      "Pruning non-factor predictors: ",
+      paste(non_factor_cols, collapse = ", ")
+    )
+  }
+  factor_data <- factor_data[, sapply(factor_data, is.factor), drop = FALSE]
 
   #--------------------------------------------------
   # 2) Clean factors: char → NA → factor
   #--------------------------------------------------
   factor_data <- factor_data %>%
-    dplyr::mutate(across(where(is.factor), as.character)) %>%
-    dplyr::mutate(across(everything(),    ~ na_if(., "NA"))) %>%
-    dplyr::mutate(across(everything(),    ~ na_if(., ""))) %>%
-    dplyr::mutate(across(everything(),    as.factor))
+    dplyr::mutate(across(where(is.factor),    as.character)) %>%
+    dplyr::mutate(across(everything(),        ~ na_if(., "NA"))) %>%
+    dplyr::mutate(across(everything(),        ~ na_if(., ""))) %>%
+    dplyr::mutate(across(everything(),        as.factor))
 
   #--------------------------------------------------
   # 3) Compute pairwise Cramer's V
@@ -746,33 +809,28 @@ factor_remove_collinearity <- function(
     tbl <- table(x, y)
     vcd::assocstats(tbl)$cramer
   }
-  var_names <- colnames(factor_data)
-  n_vars    <- length(var_names)
-  cramer_mat <- matrix(
-    0, nrow = n_vars, ncol = n_vars,
-    dimnames = list(var_names, var_names)
-  )
+  vars       <- colnames(factor_data)
+  n_vars     <- length(vars)
+  cramer_mat <- matrix(0, n_vars, n_vars, dimnames = list(vars, vars))
   for (i in seq_len(n_vars - 1)) {
-    for (j in seq((i + 1), n_vars)) {
-      cv <- cramer_v(factor_data[[i]], factor_data[[j]])
-      cramer_mat[i, j] <- cv
-      cramer_mat[j, i] <- cv
+    for (j in seq(i + 1, n_vars)) {
+      v <- cramer_v(factor_data[[i]], factor_data[[j]])
+      cramer_mat[i, j] <- v
+      cramer_mat[j, i] <- v
     }
   }
 
   #--------------------------------------------------
-  # 4) Hierarchical clustering & plot BEFORE
+  # 4) Dendrogram BEFORE grouping
   #--------------------------------------------------
-  d_mat <- stats::as.dist(1 - cramer_mat)
-  hc    <- stats::hclust(d_mat, method = "complete")
-  plot(hc,
-       main = "Dendrogram BEFORE Clustering",
-       xlab = "", sub = "")
+  d_mat <- as.dist(1 - cramer_mat)
+  hc    <- hclust(d_mat, method = "complete")
+  plot(hc, main = "Dendrogram BEFORE Factor Grouping", xlab = "", sub = "")
 
   #--------------------------------------------------
   # 5) Cut into k clusters
   #--------------------------------------------------
-  clusters <- stats::cutree(hc, k = k)
+  clusters <- cutree(hc, k = k)
 
   #--------------------------------------------------
   # 6) Show cluster membership + NA counts
@@ -782,17 +840,21 @@ factor_remove_collinearity <- function(
     cluster  = as.character(clusters),
     stringsAsFactors = FALSE
   )
-  df_clusters$NA_count <- sapply(df_clusters$variable, function(v) {
-    sum(is.na(factor_data[[v]]))
-  })
+  df_clusters$NA_count <- vapply(
+    df_clusters$variable,
+    function(v) sum(is.na(factor_data[[v]])), integer(1)
+  )
   df_clusters <- df_clusters %>%
     dplyr::group_by(cluster) %>%
     dplyr::arrange(NA_count, .by_group = TRUE)
-  cat("\n--- Cluster Membership and NA Counts ---\n")
-  print(df_clusters, n = Inf)
+
+  if (verbose) {
+    cat("\n--- Cluster Membership and NA Counts ---\n")
+    print(df_clusters, n = Inf)
+  }
 
   #--------------------------------------------------
-  # 7) Within each cluster, pick best column
+  # 7) Select one “best” per cluster
   #--------------------------------------------------
   selected_cols <- vapply(
     unique(clusters),
@@ -800,65 +862,52 @@ factor_remove_collinearity <- function(
     function(cl) {
       members   <- names(clusters[clusters == cl])
       na_counts <- setNames(
-        sapply(members, function(m) sum(is.na(factor_data[[m]]))),
+        vapply(members, function(m) sum(is.na(factor_data[[m]])), integer(1)),
         members
       )
-
-      # If any keep_cols in this cluster, restrict to those
       kc_in_cl <- intersect(members, keep_cols)
       if (length(kc_in_cl) > 0) {
-        kc_na <- na_counts[kc_in_cl]
-        min_na <- min(kc_na)
-        best   <- kc_in_cl[kc_na == min_na]
-        if (length(best) > 1) {
-          warning(
-            "Cluster ", cl, ": multiple keep_cols (",
-            paste(best, collapse = ", "),
-            ") tie with ", min_na, " NAs; selecting '",
-            best[1], "' and dropping ", paste(best[-1], collapse = ", "), "."
-          )
-        }
-        return(best[1])
+        return(kc_in_cl[which.min(na_counts[kc_in_cl])][1])
       }
-
-      # Otherwise pick overall minimum-NA
-      min_na <- min(na_counts)
-      best   <- names(na_counts)[na_counts == min_na]
-      if (length(best) > 1) {
-        warning(
-          "Cluster ", cl, ": multiple variables (",
-          paste(best, collapse = ", "),
-          ") tie with ", min_na, " NAs; selecting '",
-          best[1], "'."
-        )
-      }
-      best[1]
+      names(which.min(na_counts))[1]
     }
   )
-  selected_cols <- unname(selected_cols)
-  factor_data_reduced <- factor_data[, selected_cols, drop = FALSE]
+  factor_data_reduced <- factor_data[, unname(selected_cols), drop = FALSE]
 
   #--------------------------------------------------
-  # 8) Plot dendrogram AFTER selecting
+  # 7.5) Feature-Group summary
+  #--------------------------------------------------
+  if (verbose) {
+    df_clusters$removed <- !df_clusters$variable %in% unname(selected_cols)
+    cat("\nFeature Group summary (chosen / others):\n")
+    for (cl in sort(unique(df_clusters$cluster))) {
+      in_cl   <- df_clusters$variable[df_clusters$cluster == cl]
+      kept    <- in_cl[!df_clusters$removed[df_clusters$cluster == cl]]
+      dropped <- setdiff(in_cl, kept)
+      cat(sprintf(
+        "  Feature Group %s: %s%s\n",
+        cl,
+        kept,
+        if (length(dropped)) paste0("  /  ", paste(dropped, collapse = ", ")) else ""
+      ))
+    }
+  }
+
+  #--------------------------------------------------
+  # 8) Dendrogram AFTER grouping
   #--------------------------------------------------
   if (ncol(factor_data_reduced) > 1) {
-    var2   <- colnames(factor_data_reduced)
-    n2     <- length(var2)
-    cm2    <- matrix(0, nrow = n2, ncol = n2, dimnames = list(var2, var2))
-    for (i in seq_len(n2 - 1)) {
-      for (j in seq((i + 1), n2)) {
-        cv2 <- cramer_v(
-          factor_data_reduced[[i]],
-          factor_data_reduced[[j]]
-        )
-        cm2[i, j] <- cv2
-        cm2[j, i] <- cv2
+    vars2 <- colnames(factor_data_reduced)
+    cm2   <- matrix(0, length(vars2), length(vars2), dimnames = list(vars2, vars2))
+    for (i in seq_len(length(vars2) - 1)) {
+      for (j in seq(i + 1, length(vars2))) {
+        v2 <- cramer_v(factor_data_reduced[[i]], factor_data_reduced[[j]])
+        cm2[i, j] <- v2
+        cm2[j, i] <- v2
       }
     }
-    hc2 <- stats::hclust(stats::as.dist(1 - cm2), method = "complete")
-    plot(hc2,
-         main = "Dendrogram AFTER Selection",
-         xlab = "", sub = "")
+    hc2 <- hclust(as.dist(1 - cm2), method = "complete")
+    plot(hc2, main = "Dendrogram AFTER Factor Grouping Selection", xlab = "", sub = "")
   } else {
     message("\nOnly one factor retained; no second dendrogram.")
   }
@@ -866,13 +915,18 @@ factor_remove_collinearity <- function(
   #--------------------------------------------------
   # 9) Final summary & return
   #--------------------------------------------------
-  cat("\nBefore:", ncol(factor_data), "factor cols;",
-      "After:", ncol(factor_data_reduced), "retained.\n")
-  cat("Retained columns:\n")
-  print(colnames(factor_data_reduced))
+  if (verbose) {
+    cat(sprintf(
+      "\nBefore: %d factor cols; After: %d retained.\n",
+      ncol(factor_data), ncol(factor_data_reduced)
+    ))
+    cat("Retained columns:\n")
+    print(colnames(factor_data_reduced))
+  }
 
-  invisible(factor_data_reduced)
+  invisible(list(pruned_data = factor_data_reduced, cluster_df = df_clusters))
 }
+
 
 
 
