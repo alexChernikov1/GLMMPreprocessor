@@ -79,50 +79,51 @@ Typical Usage
 library(GLMMPreprocessor)
 
 # Set modeling controls
-random_effects  <- c("rf_1", "rf_2")
-no_interactions <- c("fe_1", "fe_2")
-TRAIN_PCT       <- 0.20
-RAND_SEED       <- 663
+random_effects  <- c("random_effect_1", "random_effect_2")   # grouping variables for random effects
+no_interactions <- c("fixed_effect_1", "fixed_effect_2")     # fixed effects to exclude from interaction terms
+TRAIN_PCT       <- 0.20                                       # percentage of data to use for training
+RAND_SEED       <- 663                                        # seed for reproducibility
 
 # Prepare preprocessor
-glmm <- GLMMPreprocessor$new(target = "target_feature")
+glmm <- GLMMPreprocessor$new(target = "target_feature")      # initialize with binary target variable
 
 # Apply to a single data frame
 prep_out <- glmm$preprocess(
   df,
-  train_pct         = TRAIN_PCT,
-  undersample_train = TRUE,
-  random_state      = RAND_SEED
+  train_pct         = TRAIN_PCT,        # fraction of rows to use in training set
+  undersample_train = TRUE,             # whether to undersample majority class
+  random_state      = RAND_SEED         # seed for reproducible sampling
 )
 
 # Run stepwise BIC-guided GLMM search
 fit_result <- glmm$stepwise_bic_glmm(
-  X                 = prep_out$X,
-  y                 = prep_out$y,
-  random_effects    = random_effects,
-  no_interactions   = no_interactions,
-  poly              = 3,
-  bic_tol           = 1,
-  max_add_steps     = 10000,
-  max_drop_steps    = 10000,
-  cores             = max(1, parallel::detectCores() - 1),
-  re_var_threshold  = 1e-6,
-  int_var_threshold = 1e-6
+  X                 = prep_out$X,               # preprocessed feature matrix
+  y                 = prep_out$y,               # target vector
+  random_effects    = random_effects,           # random effect variables
+  no_interactions   = no_interactions,          # fixed effects to exclude from interactions
+  poly              = 3,                        # include squared and cubic terms
+  bic_tol           = 0.5,                      # allow up to 50% increase *from previous best BIC* when adding/removing terms
+  max_add_steps     = 10000,                    # maximum terms to add during forward search
+  max_drop_steps    = 10000,                    # maximum terms to drop during backward search
+  cores             = max(1, parallel::detectCores() - 1),  # number of cores for parallel processing
+  re_var_threshold  = 1e-6,                     # drop random effects with negligible variance
+  int_var_threshold = 1e-6                      # exclude numeric features with low variance from interaction pool
 )
 
 # Visualize marginal effect of a predictor
 glmm$plot_marginal(
-  model_fit = fit_result$fit,
-  df        = glmm$train_df,
-  focal_var = "fe_3"
+  model_fit = fit_result$fit,                   # fitted model
+  df        = glmm$train_df,                    # training data used for centering/scaling
+  focal_var = "fixed_effect_3"                  # focal variable to visualize
 )
 
 # Joint marginal effect (e.g., cubic schedule × distance)
 glmm$plot_marginal_interaction(
-  model_fit = fit_result$fit,
-  df        = glmm$train_df,
-  vars      = c("fe_3", "fe_4")
+  model_fit = fit_result$fit,                   # fitted model
+  df        = glmm$train_df,                    # training data
+  vars      = c("fixed_effect_3", "fixed_effect_4")  # variables for interaction plot
 )
+
 ```
 
 Function Reference  
