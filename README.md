@@ -18,19 +18,27 @@ Usage
 ### Numeric Feature Filtering
 
     clean <- remove_cont_multicollinearity(
-      data,
-      target = "TargetColumn",
-      cor_threshold = 0.7,
-      vif_threshold = 5
+      data,                      # data.frame containing numeric predictors and target
+      target,                    # name of the target column
+      target_cor_threshold = 0.7,# threshold for correlation with target to drop a feature
+      cor_threshold        = 0.7,# threshold for correlation between features to drop one
+      vif_threshold        = 5,  # VIF threshold for further filtering
+      verbose              = TRUE,   # whether to print messages
+      keep_cols            = character(), # columns to always keep
+      drop_cols            = character(), # columns to drop before filtering
+      draw_corr            = FALSE  # whether to draw a heatmap
     )
 
 ### Categorical Feature Filtering
 
     reduced_factors <- factor_remove_collinearity(
-      df,
-      target_col = "TargetColumn",
-      k = 5
+      df,                        # full data frame with factor columns
+      target_col     = "TargetColumn",  # name of the target variable
+      drop_cols      = "date",   # columns to exclude from analysis
+      keep_cols      = character(), # preferred factor columns to retain
+      k              = 5         # number of clusters to form
     )
+
 
 GLMMPreprocessor
 ================
