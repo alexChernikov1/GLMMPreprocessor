@@ -20,33 +20,34 @@ Usage
 ```r
 # Step 1: Filter numeric features
 cont_result <- remove_cont_multicollinearity(
-  data                  = df,
-  target                = "TargetColumn",
-  target_cor_threshold  = 0.7,
-  cor_threshold         = 0.7,
-  vif_threshold         = 5,
-  verbose               = TRUE,
-  keep_cols             = character(),
-  drop_cols             = character(),
-  draw_corr             = FALSE
+  data                  = df,             # full dataframe
+  target                = "TargetColumn", # name of the target variable (must be 0/1 numeric or binary factor)
+  target_cor_threshold  = 0.7,            # threshold to drop predictors highly correlated with target
+  cor_threshold         = 0.7,            # threshold to drop one of any two highly correlated predictors
+  vif_threshold         = 5,              # max acceptable variance inflation factor
+  verbose               = TRUE,           # print messages about dropped variables
+  keep_cols             = character(),    # predictors you want to force-keep
+  drop_cols             = character(),    # predictors you want to drop before filtering
+  draw_corr             = FALSE           # whether to plot the correlation heatmap
 )
 
 # Step 2: Filter categorical features
 cat_result <- factor_remove_collinearity(
-  df             = df,
-  target_col     = "TargetColumn",
-  drop_cols      = "date",  # 'date' is dropped for factor selection
-  keep_cols      = character(),
-  k              = 5
+  df             = df,                   # original dataframe with factors
+  target_col     = "TargetColumn",       # name of the target variable
+  drop_cols      = "date",               # drop date before computing factor similarity
+  keep_cols      = character(),          # factors you want to force-keep
+  k              = 5                     # number of clusters to use in hierarchical clustering
 )
 
 # Step 3: Extract selected column names
-numeric_cols     <- setdiff(names(cont_result$pruned_data), "TargetColumn")
-categorical_cols <- colnames(cat_result)
+numeric_cols     <- setdiff(names(cont_result$pruned_data), "TargetColumn") # selected numeric features
+categorical_cols <- colnames(cat_result)                                    # selected factor features
 
 # Step 4: Combine selected columns from original df
 # Note: 'date' column is manually added back here
 df_cleaned <- df[, c("TargetColumn", numeric_cols, categorical_cols, "date"), drop = FALSE]
+
 ```
 
 
