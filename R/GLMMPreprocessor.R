@@ -27,9 +27,10 @@
 #' @importFrom rpart.plot prp
 NULL
 
-
+#' @export
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
+#' @export
 GLMMPreprocessor <- R6Class(
   "GLMMPreprocessor",
   lock_objects = TRUE,
@@ -493,3 +494,387 @@ GLMMPreprocessor <- R6Class(
 
   )
 )
+
+#' @export
+remove_cont_multicollinearity <- function(
+    data,
+    target,
+    target_cor_threshold = 0.7,
+    cor_threshold        = 0.70,
+    vif_threshold        = 5,
+    verbose              = TRUE,
+    keep_cols            = character(),
+    drop_cols            = character(),
+    draw_corr            = FALSE
+) {
+  # --------------------------------------------------------
+  # 0) Helper functions
+  # --------------------------------------------------------
+  uf_init <- function(items) {
+    parent <- setNames(seq_along(items), items)
+    rank   <- setNames(rep(0, length(items)), items)
+    list(parent = parent, rank = rank)
+  }
+  uf_find <- function(x, uf) {
+    if (uf$parent[x] != x) uf$parent[x] <- uf_find(uf$parent[x], uf)
+    uf$parent[x]
+  }
+  uf_union <- function(a, b, uf) {
+    rootA <- uf_find(a, uf); rootB <- uf_find(b, uf)
+    if (rootA != rootB) {
+      if      (uf$rank[rootA] < uf$rank[rootB]) uf$parent[rootA] <- rootB
+      else if (uf$rank[rootA] > uf$rank[rootB]) uf$parent[rootB] <- rootA
+      else {
+        uf$parent[rootB] <- rootA
+        uf$rank[rootA]  <- uf$rank[rootA] + 1
+      }
+    }
+    uf
+  }
+  na_count <- function(x) sum(is.na(x))
+
+  # --------------------------------------------------------
+  # 1) Validate & prepare data
+  # --------------------------------------------------------
+  if (!target %in% names(data)) {
+    stop("Target column '", target, "' not found in data.")
+  }
+  if (length(drop_cols) > 0) {
+    data <- data[, setdiff(names(data), drop_cols), drop = FALSE]
+    if (verbose) message("Dropped user-specified columns: ", paste(drop_cols, collapse = ", "))
+  }
+
+  target_vec <- data[[target]]
+  df_preds   <- data[, setdiff(names(data), target), drop = FALSE]
+  # keep only numeric with variation
+  df_preds   <- df_preds[, sapply(df_preds, is.numeric), drop = FALSE]
+  df_preds   <- df_preds[, sapply(df_preds, function(x) {
+    !all(is.na(x)) && length(unique(na.omit(x))) > 1
+  }), drop = FALSE]
+
+  # --------------------------------------------------------
+  # 2) Target correlation filtering
+  # --------------------------------------------------------
+  if (ncol(df_preds) > 0) {
+    tcorrs <- sapply(df_preds, function(x) cor(x, target_vec, use = "complete.obs"))
+    drop_target <- names(tcorrs)[
+      abs(tcorrs) > target_cor_threshold &
+        !names(tcorrs) %in% keep_cols &
+        !is.na(tcorrs)
+    ]
+    if (length(drop_target) > 0) {
+      if (verbose) message(
+        "Dropping ", length(drop_target),
+        " predictors with |corr| > ", target_cor_threshold,
+        " vs target: ", paste(drop_target, collapse = ", ")
+      )
+      df_preds <- df_preds[, setdiff(names(df_preds), drop_target), drop = FALSE]
+    }
+  }
+  if (ncol(df_preds) < 2) {
+    if (verbose) message("Not enough predictors after target filtering.")
+    return(list(pruned_data = data.frame(setNames(list(target_vec), target)),
+                cluster_df  = NULL))
+  }
+
+  all_cols       <- colnames(df_preds)
+  uf             <- uf_init(all_cols)
+  removed_status <- setNames(rep(FALSE, length(all_cols)), all_cols)
+
+  # --------------------------------------------------------
+  # 3) Correlation filtering among predictors
+  # --------------------------------------------------------
+  corr_mat <- suppressWarnings(cor(df_preds, use = "pairwise.complete.obs"))
+  high_cor <- which(abs(corr_mat) > cor_threshold & upper.tri(corr_mat), arr.ind = TRUE)
+  while (nrow(high_cor) > 0) {
+    i      <- high_cor[1,1]; j <- high_cor[1,2]
+    c1     <- colnames(corr_mat)[i]; c2 <- colnames(corr_mat)[j]
+    na1    <- na_count(df_preds[[c1]]); na2 <- na_count(df_preds[[c2]])
+    in1    <- c1 %in% keep_cols; in2 <- c2 %in% keep_cols
+    if      (in1 && !in2) { drop_col <- c2; keep_col <- c1 }
+    else if (!in1 && in2) { drop_col <- c1; keep_col <- c2 }
+    else if (na1 > na2)    { drop_col <- c1; keep_col <- c2 }
+    else if (na2 > na1)    { drop_col <- c2; keep_col <- c1 }
+    else {
+      drop_col <- c2; keep_col <- c1
+      if (in1 && in2) warning(
+        "Tie for keep_cols in '", c1, "' & '", c2,
+        "'; dropping '", drop_col, "'."
+      )
+    }
+    uf <- uf_union(drop_col, keep_col, uf)
+    removed_status[drop_col] <- TRUE
+    if (verbose) message(
+      "Dropping '", drop_col, "' corr> ", cor_threshold,
+      " with '", keep_col, "'."
+    )
+    df_preds[[drop_col]] <- NULL
+    if (ncol(df_preds) <= 1) break
+    corr_mat  <- suppressWarnings(cor(df_preds, use = "pairwise.complete.obs"))
+    high_cor  <- which(abs(corr_mat) > cor_threshold & upper.tri(corr_mat), arr.ind = TRUE)
+  }
+
+  # --------------------------------------------------------
+  # 4) VIF filtering
+  # --------------------------------------------------------
+  if (ncol(df_preds) > 1) {
+    set.seed(123); fake_y <- rnorm(nrow(df_preds))
+    repeat {
+      form     <- as.formula(paste("fake_y ~", paste(names(df_preds), collapse = " + ")))
+      fit_vif  <- lm(form, data = df_preds)
+      all_vifs <- car::vif(fit_vif)
+      max_vif  <- max(all_vifs)
+      if (max_vif < vif_threshold) break
+      worst_col  <- names(which.max(all_vifs))
+      other_cols <- setdiff(names(df_preds), worst_col)
+      if (length(other_cols) == 0) {
+        removed_status[worst_col] <- TRUE
+        if (verbose) message("Dropping '", worst_col, "' (VIF=", round(max_vif,2), ") no partner.")
+        df_preds[[worst_col]] <- NULL; break
+      }
+      w_corrs     <- sapply(other_cols, function(cc)
+        cor(df_preds[[worst_col]], df_preds[[cc]], use = "pairwise.complete.obs"))
+      partner_col <- names(which.max(abs(w_corrs)))
+      uf <- uf_union(worst_col, partner_col, uf)
+      removed_status[worst_col] <- TRUE
+      if (verbose) message(
+        "Dropping '", worst_col, "' (VIF=", round(max_vif,2),
+        ") corr with '", partner_col, "'."
+      )
+      df_preds[[worst_col]] <- NULL
+      if (ncol(df_preds) < 2) break
+    }
+  }
+
+  # --------------------------------------------------------
+  # 5) Cluster summary & final output
+  # --------------------------------------------------------
+  final_cols  <- names(uf$parent)
+  final_roots <- sapply(final_cols, uf_find, uf = uf)
+  clusters    <- as.integer(factor(final_roots))
+  df_clusters <- data.frame(
+    variable = final_cols,
+    cluster  = clusters,
+    removed  = removed_status[final_cols],
+    stringsAsFactors = FALSE
+  )
+
+  if (verbose) {
+    # print per‐cluster chosen vs others
+    cluster_summary <- df_clusters %>%
+      group_by(cluster) %>%
+      summarise(
+        chosen = variable[!removed][1],
+        others = paste(variable[removed], collapse = ", "),
+        .groups = "drop"
+      )
+    message("\nCluster summary (chosen / others):")
+    apply(cluster_summary, 1, function(row) {
+      msg <- paste0("  Cluster ", row["cluster"], ": ",
+                    row["chosen"],
+                    if (nzchar(row["others"])) paste0("  /  ", row["others"]) else "")
+      message(msg)
+    })
+    # also show full table
+    print(df_clusters)
+  }
+
+  pruned_data <- cbind(
+    setNames(data.frame(target_vec), target),
+    df_preds
+  )
+
+  if (draw_corr) {
+    if (!requireNamespace("pheatmap", quietly = TRUE)) {
+      warning("Install 'pheatmap' to draw heatmap.")
+    } else {
+      cm <- cor(pruned_data, use = "pairwise.complete.obs")
+      pheatmap::pheatmap(
+        cm,
+        color           = colorRampPalette(c("blue", "white", "red"))(50),
+        main            = "Correlation Heatmap",
+        display_numbers = TRUE,
+        angle_col       = 90
+      )
+    }
+  }
+
+  list(pruned_data = pruned_data, cluster_df = df_clusters)
+}
+
+#' @export
+factor_remove_collinearity <- function(
+    df,
+    target_col     = "Likelihood_to_Recommend__Relationship",
+    drop_cols      = "date",
+    keep_cols      = character(),
+    k              = 5
+) {
+  #--------------------------------------------------
+  # 0) Prep: require packages
+  #--------------------------------------------------
+  if (!requireNamespace("dplyr", quietly = TRUE)) {
+    stop("Please install the 'dplyr' package.")
+  }
+  if (!requireNamespace("vcd", quietly = TRUE)) {
+    stop("Please install the 'vcd' package (for assocstats).")
+  }
+
+  #--------------------------------------------------
+  # 1) Create factor-only data (exclude numeric target)
+  #--------------------------------------------------
+  model_data <- df %>%
+    dplyr::select(all_of(target_col), where(~ !is.numeric(.)))
+  if (!is.null(drop_cols)) {
+    model_data <- model_data %>% dplyr::select(-any_of(drop_cols))
+  }
+  factor_data <- model_data %>% dplyr::select(-all_of(target_col))
+
+  #--------------------------------------------------
+  # 2) Clean factors: char → NA → factor
+  #--------------------------------------------------
+  factor_data <- factor_data %>%
+    dplyr::mutate(across(where(is.factor), as.character)) %>%
+    dplyr::mutate(across(everything(),    ~ na_if(., "NA"))) %>%
+    dplyr::mutate(across(everything(),    ~ na_if(., ""))) %>%
+    dplyr::mutate(across(everything(),    as.factor))
+
+  #--------------------------------------------------
+  # 3) Compute pairwise Cramer's V
+  #--------------------------------------------------
+  cramer_v <- function(x, y) {
+    tbl <- table(x, y)
+    vcd::assocstats(tbl)$cramer
+  }
+  var_names <- colnames(factor_data)
+  n_vars    <- length(var_names)
+  cramer_mat <- matrix(
+    0, nrow = n_vars, ncol = n_vars,
+    dimnames = list(var_names, var_names)
+  )
+  for (i in seq_len(n_vars - 1)) {
+    for (j in seq((i + 1), n_vars)) {
+      cv <- cramer_v(factor_data[[i]], factor_data[[j]])
+      cramer_mat[i, j] <- cv
+      cramer_mat[j, i] <- cv
+    }
+  }
+
+  #--------------------------------------------------
+  # 4) Hierarchical clustering & plot BEFORE
+  #--------------------------------------------------
+  d_mat <- stats::as.dist(1 - cramer_mat)
+  hc    <- stats::hclust(d_mat, method = "complete")
+  plot(hc,
+       main = "Dendrogram BEFORE Clustering",
+       xlab = "", sub = "")
+
+  #--------------------------------------------------
+  # 5) Cut into k clusters
+  #--------------------------------------------------
+  clusters <- stats::cutree(hc, k = k)
+
+  #--------------------------------------------------
+  # 6) Show cluster membership + NA counts
+  #--------------------------------------------------
+  df_clusters <- data.frame(
+    variable = names(clusters),
+    cluster  = as.character(clusters),
+    stringsAsFactors = FALSE
+  )
+  df_clusters$NA_count <- sapply(df_clusters$variable, function(v) {
+    sum(is.na(factor_data[[v]]))
+  })
+  df_clusters <- df_clusters %>%
+    dplyr::group_by(cluster) %>%
+    dplyr::arrange(NA_count, .by_group = TRUE)
+  cat("\n--- Cluster Membership and NA Counts ---\n")
+  print(df_clusters, n = Inf)
+
+  #--------------------------------------------------
+  # 7) Within each cluster, pick best column
+  #--------------------------------------------------
+  selected_cols <- vapply(
+    unique(clusters),
+    FUN.VALUE = character(1),
+    function(cl) {
+      members   <- names(clusters[clusters == cl])
+      na_counts <- setNames(
+        sapply(members, function(m) sum(is.na(factor_data[[m]]))),
+        members
+      )
+
+      # If any keep_cols in this cluster, restrict to those
+      kc_in_cl <- intersect(members, keep_cols)
+      if (length(kc_in_cl) > 0) {
+        kc_na <- na_counts[kc_in_cl]
+        min_na <- min(kc_na)
+        best   <- kc_in_cl[kc_na == min_na]
+        if (length(best) > 1) {
+          warning(
+            "Cluster ", cl, ": multiple keep_cols (",
+            paste(best, collapse = ", "),
+            ") tie with ", min_na, " NAs; selecting '",
+            best[1], "' and dropping ", paste(best[-1], collapse = ", "), "."
+          )
+        }
+        return(best[1])
+      }
+
+      # Otherwise pick overall minimum-NA
+      min_na <- min(na_counts)
+      best   <- names(na_counts)[na_counts == min_na]
+      if (length(best) > 1) {
+        warning(
+          "Cluster ", cl, ": multiple variables (",
+          paste(best, collapse = ", "),
+          ") tie with ", min_na, " NAs; selecting '",
+          best[1], "'."
+        )
+      }
+      best[1]
+    }
+  )
+  selected_cols <- unname(selected_cols)
+  factor_data_reduced <- factor_data[, selected_cols, drop = FALSE]
+
+  #--------------------------------------------------
+  # 8) Plot dendrogram AFTER selecting
+  #--------------------------------------------------
+  if (ncol(factor_data_reduced) > 1) {
+    var2   <- colnames(factor_data_reduced)
+    n2     <- length(var2)
+    cm2    <- matrix(0, nrow = n2, ncol = n2, dimnames = list(var2, var2))
+    for (i in seq_len(n2 - 1)) {
+      for (j in seq((i + 1), n2)) {
+        cv2 <- cramer_v(
+          factor_data_reduced[[i]],
+          factor_data_reduced[[j]]
+        )
+        cm2[i, j] <- cv2
+        cm2[j, i] <- cv2
+      }
+    }
+    hc2 <- stats::hclust(stats::as.dist(1 - cm2), method = "complete")
+    plot(hc2,
+         main = "Dendrogram AFTER Selection",
+         xlab = "", sub = "")
+  } else {
+    message("\nOnly one factor retained; no second dendrogram.")
+  }
+
+  #--------------------------------------------------
+  # 9) Final summary & return
+  #--------------------------------------------------
+  cat("\nBefore:", ncol(factor_data), "factor cols;",
+      "After:", ncol(factor_data_reduced), "retained.\n")
+  cat("Retained columns:\n")
+  print(colnames(factor_data_reduced))
+
+  invisible(factor_data_reduced)
+}
+
+
+
+
+
