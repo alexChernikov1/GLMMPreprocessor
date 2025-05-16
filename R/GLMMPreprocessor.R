@@ -27,15 +27,15 @@
 #' @importFrom rpart.plot prp
 NULL
 
-#' Null coalescing operator: `%||%`
+#' Null coalescing operator
 #'
-#' Return `y` if `x` is `NULL`, otherwise return `x`.
+#' Returns `y` if `x` is `NULL`, otherwise returns `x`.
 #'
 #' @name %||%
 #' @usage x \%||\% y
-#' @param x Object to check.
-#' @param y Default value if `x` is `NULL`.
-#' @return `x` if not `NULL`, otherwise `y`.
+#' @param x An object that may be `NULL`
+#' @param y A default value if `x` is `NULL`
+#' @return `x` if not `NULL`, otherwise `y`
 #' @export
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
