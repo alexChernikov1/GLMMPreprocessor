@@ -2,17 +2,17 @@
 % Please edit documentation in R/GLMMPreprocessor.R
 \name{\%||\%}
 \alias{\%||\%}
-\title{Null coalescing operator `%||%`}
+\title{Null‑coalescing operator}
 \usage{
 x \%||\% y
 }
 \arguments{
-\item{x}{An object that may be NULL.}
+\item{x}{A value that may be `NULL`.}
 
-\item{y}{A default to return if `x` is NULL.}
+\item{y}{A default value if `x` is `NULL`.}
 }
 \value{
-`x` if not NULL, otherwise `y`.
+`x` if not `NULL`, otherwise `y`.
 }
 \description{
 Returns `y` if `x` is `NULL`, otherwise returns `x`.
