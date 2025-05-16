@@ -40,45 +40,87 @@ Usage
     )
 
 
-GLMMPreprocessor
+GLMMPreprocessor  
 ================
 
-GLMMPreprocessor is an R6-based package for preprocessing data and performing stepwise BIC-guided feature selection for Generalized Linear Mixed Models (GLMMs). It includes tools for data splitting, scaling, polynomial and interaction term modeling, and marginal effect visualization.
+**GLMMPreprocessor** is an R6-based utility designed for preprocessing and modeling binary response data using Generalized Linear Mixed Models (GLMMs). It supports automated feature engineering, stepwise BIC-guided model selection, and marginal effect visualization. It is especially useful in contexts where fixed and random effects must be distinguished, polynomial and interaction terms are explored, and interpretability is key.
 
-Features
---------
+Core Capabilities  
+------------------
 
-- Preprocessing of binary response data for GLMMs
-- Train/test split with optional class balancing
-- Scaling of numeric variables
-- Handles date and factor columns automatically
-- Stepwise BIC feature selection using `glmer` or `glm`
-- Support for polynomial terms and interactions
-- Visualizations for 1D and 2D marginal effects
+- Binary response preprocessing (factor or numeric 0/1)
+- Train/test split with optional undersampling to balance classes
+- Automatic handling of date and factor variables
+- Numeric standardization with saved scaling parameters
+- Polynomial expansion (e.g., squared, cubic terms)
+- Optional interaction terms with exclusion rules
+- Stepwise forward and backward feature selection via BIC
+- Mixed model fitting using `glmer()` or fallback to `glm()` if needed
+- Support for random intercepts via `(1 | group)` syntax
+- Detection and removal of negligible variance random effects
+- Fixed-effects marginal prediction plots (1D and 2D)
 
-Quick Start
------------
+Typical Usage  
+-------------
 
-    library(GLMMPreprocessor)
+```r
+library(GLMMPreprocessor)
 
-    # Initialize preprocessor
-    glmm <- GLMMPreprocessor$new(target = "ARRIVAL_DELAY_BINOM")
+# Set modeling controls
+random_effects  <- c("date_month", "Service_Range_Desc_Household")
+no_interactions <- c("Unemployment_Rate", "Interest_Rate")
+TRAIN_PCT       <- 0.20
+RAND_SEED       <- 663
 
-    # Preprocess data
-    out <- glmm$preprocess(my_data)
+# Prepare preprocessor
+glmm <- GLMMPreprocessor$new(target = "LTR_Binary")
 
-    # Run stepwise BIC-guided GLMM search
-    fit_result <- glmm$stepwise_bic_glmm(
-      X = out$X, y = out$y,
-      random_effects = c("AIRLINE", "ROUTE")
-    )
+# Apply to a single data frame
+prep_out <- glmm$preprocess(
+  df,
+  train_pct         = TRAIN_PCT,
+  undersample_train = TRUE,
+  random_state      = RAND_SEED
+)
 
-    # Plot marginal effect of a focal predictor
-    glmm$plot_marginal(
-      model_fit = fit_result$fit,
-      df = glmm$train_df,
-      focal_var = "SCHEDULED_DEPARTURE"
-    )
+# Run stepwise BIC-guided GLMM search
+fit_result <- glmm$stepwise_bic_glmm(
+  X                 = prep_out$X,
+  y                 = prep_out$y,
+  random_effects    = random_effects,
+  no_interactions   = no_interactions,
+  poly              = 3,
+  bic_tol           = 1,
+  max_add_steps     = 10000,
+  max_drop_steps    = 10000,
+  cores             = max(1, parallel::detectCores() - 1),
+  re_var_threshold  = 1e-6,
+  int_var_threshold = 1e-6
+)
+
+# Visualize marginal effect of a predictor
+glmm$plot_marginal(
+  model_fit = fit_result$fit,
+  df        = glmm$train_df,
+  focal_var = "Unemployment_Rate"
+)
+
+# Joint marginal effect (e.g., cubic schedule × distance)
+glmm$plot_marginal_interaction(
+  model_fit = fit_result$fit,
+  df        = glmm$train_df,
+  vars      = c("SCHEDULED_DEPARTURE", "DISTANCE")
+)
+```
+
+Function Reference  
+------------------
+
+- `GLMMPreprocessor$new(target)` — initializes the preprocessor with a binary target
+- `$preprocess(df, train_pct, undersample_train, random_state)` — preprocesses the data, splits into train/test, and scales numerics
+- `$stepwise_bic_glmm(X, y, ...)` — performs stepwise BIC model selection with polynomial and interaction terms
+- `$plot_marginal(model_fit, df, focal_var)` — 1D marginal effect plot
+- `$plot_marginal_interaction(model_fit, df, vars)` — 2D marginal effect heatmap for two variables
 
 Plotting Tools
 --------------
