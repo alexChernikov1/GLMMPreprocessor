@@ -67,13 +67,13 @@ Typical Usage
 library(GLMMPreprocessor)
 
 # Set modeling controls
-random_effects  <- c("date_month", "Service_Range_Desc_Household")
-no_interactions <- c("Unemployment_Rate", "Interest_Rate")
+random_effects  <- c("rf_1", "rf_2")
+no_interactions <- c("fe_1", "fe_2")
 TRAIN_PCT       <- 0.20
 RAND_SEED       <- 663
 
 # Prepare preprocessor
-glmm <- GLMMPreprocessor$new(target = "LTR_Binary")
+glmm <- GLMMPreprocessor$new(target = "target_feature")
 
 # Apply to a single data frame
 prep_out <- glmm$preprocess(
@@ -102,14 +102,14 @@ fit_result <- glmm$stepwise_bic_glmm(
 glmm$plot_marginal(
   model_fit = fit_result$fit,
   df        = glmm$train_df,
-  focal_var = "Unemployment_Rate"
+  focal_var = "fe_3"
 )
 
 # Joint marginal effect (e.g., cubic schedule × distance)
 glmm$plot_marginal_interaction(
   model_fit = fit_result$fit,
   df        = glmm$train_df,
-  vars      = c("SCHEDULED_DEPARTURE", "DISTANCE")
+  vars      = c("fe_3", "fe_4")
 )
 ```
 
