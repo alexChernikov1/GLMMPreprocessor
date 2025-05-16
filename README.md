@@ -15,7 +15,7 @@ Features
 Usage
 -----
 
-### Numeric Feature Filtering
+### Feature Reduction
 
 ```r
 # Step 1: Filter numeric features
