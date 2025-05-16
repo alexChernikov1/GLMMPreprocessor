@@ -25,8 +25,8 @@ cont_result <- remove_cont_multicollinearity(
   cor_threshold         = 0.7,            # drop one of any two predictors with |corr| > 0.7
   vif_threshold         = 5,              # drop predictors until all VIFs < 5
   verbose               = TRUE,           # print diagnostic messages
-  keep_cols             = character(),    # predictors to force-keep
   drop_cols             = character(),    # predictors to drop before filtering
+  keep_cols             = character(),    # predictors to force-keep
   draw_corr             = FALSE           # plot final correlation heatmap
 )
 
