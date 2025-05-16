@@ -27,15 +27,17 @@
 #' @importFrom rpart.plot prp
 NULL
 
-#' Null‑coalescing operator
+#' Null coalescing operator: `%||%`
 #'
-#' Returns `y` if `x` is `NULL`, otherwise returns `x`.
-#' @param x A value that may be `NULL`.
-#' @param y A default value if `x` is `NULL`.
+#' Return `y` if `x` is `NULL`, otherwise return `x`.
+#'
+#' @name %||%
+#' @usage x \%||\% y
+#' @param x Object to check.
+#' @param y Default value if `x` is `NULL`.
 #' @return `x` if not `NULL`, otherwise `y`.
 #' @export
 `%||%` <- function(x, y) if (is.null(x)) y else x
-
 
 #' @export
 GLMMPreprocessor <- R6Class(
