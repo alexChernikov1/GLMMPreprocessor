@@ -17,27 +17,38 @@ Usage
 
 ### Numeric Feature Filtering
 
-    clean <- remove_cont_multicollinearity(
-      data,                      # data.frame containing numeric predictors and target
-      target,                    # name of the target column
-      target_cor_threshold = 0.7,# threshold for correlation with target to drop a feature
-      cor_threshold        = 0.7,# threshold for correlation between features to drop one
-      vif_threshold        = 5,  # VIF threshold for further filtering
-      verbose              = TRUE,   # whether to print messages
-      keep_cols            = character(), # columns to always keep
-      drop_cols            = character(), # columns to drop before filtering
-      draw_corr            = FALSE  # whether to draw a heatmap
-    )
+```r
+# Step 1: Filter numeric features
+cont_result <- remove_cont_multicollinearity(
+  data                  = df,
+  target                = "TargetColumn",
+  target_cor_threshold  = 0.7,
+  cor_threshold         = 0.7,
+  vif_threshold         = 5,
+  verbose               = TRUE,
+  keep_cols             = character(),
+  drop_cols             = character(),
+  draw_corr             = FALSE
+)
 
-### Categorical Feature Filtering
+# Step 2: Filter categorical features
+cat_result <- factor_remove_collinearity(
+  df             = df,
+  target_col     = "TargetColumn",
+  drop_cols      = "date",  # 'date' is dropped for factor selection
+  keep_cols      = character(),
+  k              = 5
+)
 
-    reduced_factors <- factor_remove_collinearity(
-      df,                        # full data frame with factor columns
-      target_col     = "TargetColumn",  # name of the target variable
-      drop_cols      = "date",   # columns to exclude from analysis
-      keep_cols      = character(), # preferred factor columns to retain
-      k              = 5         # number of clusters to form
-    )
+# Step 3: Extract selected column names
+numeric_cols     <- setdiff(names(cont_result$pruned_data), "TargetColumn")
+categorical_cols <- colnames(cat_result)
+
+# Step 4: Combine selected columns from original df
+# Note: 'date' column is manually added back here
+df_cleaned <- df[, c("TargetColumn", numeric_cols, categorical_cols, "date"), drop = FALSE]
+```
+
 
 
 GLMMPreprocessor  
