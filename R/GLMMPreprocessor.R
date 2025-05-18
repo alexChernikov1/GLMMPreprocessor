@@ -40,7 +40,7 @@ NULL
 `%||%` <- function(x, y) if (is.null(x)) y else x
 
 #' @export
-GLMMPreprocessor <- R6Class(
+GLMMPreprocessor <- R6::R6Class(
   "GLMMPreprocessor",
   lock_objects = TRUE,
   public = list(
