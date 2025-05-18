@@ -509,6 +509,7 @@ remove_cont_multicollinearity <- function(
     data,
     target,
     target_cor_threshold = 0.7,
+    target_corr_last     = TRUE,      # new flag: run target‐corr after VIF
     cor_threshold        = 0.70,
     vif_threshold        = 5,
     verbose              = TRUE,
@@ -552,50 +553,41 @@ remove_cont_multicollinearity <- function(
     data <- data[, setdiff(names(data), drop_cols), drop = FALSE]
     if (verbose) message("Dropped user-specified columns: ", paste(drop_cols, collapse = ", "))
   }
-  #--------------------------------------------------
-  # 1.5) Warn for columns that are neither numeric nor factor
-  #--------------------------------------------------
   not_num_or_factor <- names(data)[sapply(data, function(x) !is.numeric(x) && !is.factor(x))]
-  all_ignored <- union(drop_cols, target)
-  not_num_or_factor <- setdiff(not_num_or_factor, all_ignored)
+  not_num_or_factor <- setdiff(not_num_or_factor, c(drop_cols, target))
   if (length(not_num_or_factor) > 0 && verbose) {
-    warning(paste0("Variables that are neither numeric nor factor: ", paste(not_num_or_factor, collapse = ", "), "\n"))
+    warning("Variables neither numeric nor factor: ", paste(not_num_or_factor, collapse = ", "))
   }
 
   target_vec <- data[[target]]
   df_preds   <- data[, setdiff(names(data), target), drop = FALSE]
 
-  # -- New: Remove non-numeric predictors --
-  non_numeric_cols <- names(df_preds)[!sapply(df_preds, is.numeric)]
-  if (length(non_numeric_cols) > 0 && verbose) {
-    warning(paste0("Pruning non-numeric predictors: ", paste(non_numeric_cols, collapse = ", "), "\n"))
-  }
+  # prune to numeric predictors with >1 unique non-NA value
   df_preds <- df_preds[, sapply(df_preds, is.numeric), drop = FALSE]
-
-
-  # keep only numeric with variation
-  df_preds   <- df_preds[, sapply(df_preds, is.numeric), drop = FALSE]
-  df_preds   <- df_preds[, sapply(df_preds, function(x) {
+  df_preds <- df_preds[, sapply(df_preds, function(x) {
     !all(is.na(x)) && length(unique(na.omit(x))) > 1
   }), drop = FALSE]
 
   # --------------------------------------------------------
-  # 2) Target correlation filtering
+  # 2) (Optional) Early target‐cor filtering
   # --------------------------------------------------------
-  if (ncol(df_preds) > 0) {
+  valid_target_corr <- !is.null(target_vec) &&
+    is.numeric(target_vec) &&
+    length(na.omit(target_vec)) > 1 &&
+    length(unique(na.omit(target_vec))) > 1
+
+
+
+  if (!target_corr_last && valid_target_corr && ncol(df_preds) > 0)  {
     tcorrs <- sapply(df_preds, function(x) cor(x, target_vec, use = "complete.obs"))
-    drop_target <- names(tcorrs)[
-      abs(tcorrs) > target_cor_threshold &
-        !names(tcorrs) %in% keep_cols &
-        !is.na(tcorrs)
-    ]
-    if (length(drop_target) > 0) {
-      if (verbose) message(
-        "Dropping ", length(drop_target),
-        " predictors with |corr| > ", target_cor_threshold,
-        " vs target: ", paste(drop_target, collapse = ", ")
-      )
-      df_preds <- df_preds[, setdiff(names(df_preds), drop_target), drop = FALSE]
+    drop_t <- names(tcorrs)[abs(tcorrs) > target_cor_threshold &
+                              !names(tcorrs) %in% keep_cols &
+                              !is.na(tcorrs)]
+    if (length(drop_t) > 0) {
+      if (verbose) message("Dropping ", length(drop_t),
+                           " predictors w/ |corr|> ", target_cor_threshold,
+                           " vs target: ", paste(drop_t, collapse = ", "))
+      df_preds <- df_preds[, setdiff(names(df_preds), drop_t), drop = FALSE]
     }
   }
   if (ncol(df_preds) < 2) {
@@ -604,77 +596,96 @@ remove_cont_multicollinearity <- function(
                 cluster_df  = NULL))
   }
 
+  # --------------------------------------------------------
+  # 3) Predictor–predictor correlation filtering
+  # --------------------------------------------------------
   all_cols       <- colnames(df_preds)
   uf             <- uf_init(all_cols)
   removed_status <- setNames(rep(FALSE, length(all_cols)), all_cols)
 
-  # --------------------------------------------------------
-  # 3) Correlation filtering among predictors
-  # --------------------------------------------------------
   corr_mat <- suppressWarnings(cor(df_preds, use = "pairwise.complete.obs"))
   high_cor <- which(abs(corr_mat) > cor_threshold & upper.tri(corr_mat), arr.ind = TRUE)
   while (nrow(high_cor) > 0) {
-    i      <- high_cor[1,1]; j <- high_cor[1,2]
-    c1     <- colnames(corr_mat)[i]; c2 <- colnames(corr_mat)[j]
-    na1    <- na_count(df_preds[[c1]]); na2 <- na_count(df_preds[[c2]])
-    in1    <- c1 %in% keep_cols; in2 <- c2 %in% keep_cols
+    i <- high_cor[1,1]; j <- high_cor[1,2]
+    c1 <- colnames(corr_mat)[i]; c2 <- colnames(corr_mat)[j]
+    na1 <- na_count(df_preds[[c1]]); na2 <- na_count(df_preds[[c2]])
+    in1 <- c1 %in% keep_cols; in2 <- c2 %in% keep_cols
+
     if      (in1 && !in2) { drop_col <- c2; keep_col <- c1 }
     else if (!in1 && in2) { drop_col <- c1; keep_col <- c2 }
     else if (na1 > na2)    { drop_col <- c1; keep_col <- c2 }
     else if (na2 > na1)    { drop_col <- c2; keep_col <- c1 }
     else {
       drop_col <- c2; keep_col <- c1
-      if (in1 && in2) warning(
-        "Tie for keep_cols in '", c1, "' & '", c2,
-        "'; dropping '", drop_col, "'."
-      )
+      if (in1 && in2) warning("Tie for keep_cols in '", c1, "' & '", c2,
+                              "'; dropping '", drop_col, "'.")
     }
+
     uf <- uf_union(drop_col, keep_col, uf)
     removed_status[drop_col] <- TRUE
-    if (verbose) message(
-      "Dropping '", drop_col, "' corr> ", cor_threshold,
-      " with '", keep_col, "'."
-    )
+    if (verbose) message("Dropping '", drop_col,
+                         "' corr> ", cor_threshold,
+                         " with '", keep_col, "'.")
     df_preds[[drop_col]] <- NULL
     if (ncol(df_preds) <= 1) break
-    corr_mat  <- suppressWarnings(cor(df_preds, use = "pairwise.complete.obs"))
-    high_cor  <- which(abs(corr_mat) > cor_threshold & upper.tri(corr_mat), arr.ind = TRUE)
+    corr_mat <- suppressWarnings(cor(df_preds, use = "pairwise.complete.obs"))
+    high_cor <- which(abs(corr_mat) > cor_threshold & upper.tri(corr_mat), arr.ind = TRUE)
   }
 
   # --------------------------------------------------------
-  # 4) VIF filtering
+  # 4) VIF–based filtering
   # --------------------------------------------------------
   if (ncol(df_preds) > 1) {
     set.seed(123); fake_y <- rnorm(nrow(df_preds))
     repeat {
-      form     <- as.formula(paste("fake_y ~", paste(names(df_preds), collapse = " + ")))
-      fit_vif  <- lm(form, data = df_preds)
-      all_vifs <- car::vif(fit_vif)
-      max_vif  <- max(all_vifs)
+      form    <- as.formula(paste("fake_y ~", paste(names(df_preds), collapse = " + ")))
+      fit_vif <- lm(form, data = df_preds)
+      vifs    <- car::vif(fit_vif)
+      max_vif <- max(vifs)
       if (max_vif < vif_threshold) break
-      worst_col  <- names(which.max(all_vifs))
-      other_cols <- setdiff(names(df_preds), worst_col)
-      if (length(other_cols) == 0) {
-        removed_status[worst_col] <- TRUE
-        if (verbose) message("Dropping '", worst_col, "' (VIF=", round(max_vif,2), ") no partner.")
-        df_preds[[worst_col]] <- NULL; break
+
+      worst <- names(which.max(vifs))
+      others <- setdiff(names(df_preds), worst)
+      if (length(others) == 0) {
+        removed_status[worst] <- TRUE
+        if (verbose) message("Dropping '", worst, "' (VIF=", round(max_vif,2),") no partner.")
+        df_preds[[worst]] <- NULL; break
       }
-      w_corrs     <- sapply(other_cols, function(cc)
-        cor(df_preds[[worst_col]], df_preds[[cc]], use = "pairwise.complete.obs"))
-      partner_col <- names(which.max(abs(w_corrs)))
-      uf <- uf_union(worst_col, partner_col, uf)
-      removed_status[worst_col] <- TRUE
-      if (verbose) message(
-        "Dropping '", worst_col, "' (VIF=", round(max_vif,2),
-        ") corr with '", partner_col, "'."
-      )
-      df_preds[[worst_col]] <- NULL
+
+      corrs <- sapply(others, function(cc)
+        cor(df_preds[[worst]], df_preds[[cc]], use = "pairwise.complete.obs"))
+      partner <- names(which.max(abs(corrs)))
+
+      uf <- uf_union(worst, partner, uf)
+      removed_status[worst] <- TRUE
+      if (verbose) message("Dropping '", worst,
+                           "' (VIF=", round(max_vif,2),
+                           ") corr with '", partner, "'.")
+      df_preds[[worst]] <- NULL
       if (ncol(df_preds) < 2) break
     }
   }
 
   # --------------------------------------------------------
-  # 5) Cluster summary & final output
+  # 5) (Optional) Late target‐cor filtering
+  # --------------------------------------------------------
+  if (target_corr_last && valid_target_corr && ncol(df_preds) > 0) {
+    tcorrs <- sapply(df_preds, function(x) cor(x, target_vec, use = "complete.obs"))
+    drop_t <- names(tcorrs)[abs(tcorrs) > target_cor_threshold &
+                              !names(tcorrs) %in% keep_cols &
+                              !is.na(tcorrs)]
+    if (length(drop_t) > 0) {
+      if (verbose) message("Dropping ", length(drop_t),
+                           " predictors w/ |corr|> ", target_cor_threshold,
+                           " vs target (post‐VIF): ",
+                           paste(drop_t, collapse = ", "))
+      df_preds <- df_preds[, setdiff(names(df_preds), drop_t), drop = FALSE]
+      removed_status[drop_t] <- TRUE
+    }
+  }
+
+  # --------------------------------------------------------
+  # 6) Cluster summary & return
   # --------------------------------------------------------
   final_cols  <- names(uf$parent)
   final_roots <- sapply(final_cols, uf_find, uf = uf)
@@ -687,7 +698,7 @@ remove_cont_multicollinearity <- function(
   )
 
   if (verbose) {
-    # print per‐cluster chosen vs others
+    library(dplyr)
     cluster_summary <- df_clusters %>%
       group_by(cluster) %>%
       summarise(
@@ -699,10 +710,9 @@ remove_cont_multicollinearity <- function(
     apply(cluster_summary, 1, function(row) {
       msg <- paste0("  Feature Group ", row["cluster"], ": ",
                     row["chosen"],
-                    if (nzchar(row["others"])) paste0("  /  ", row["others"]) else "")
+                    if (nzchar(row["others"])) paste0("  /  ", row["others"]))
       message(msg)
     })
-    # also show full table
     print(df_clusters)
   }
 
@@ -712,31 +722,20 @@ remove_cont_multicollinearity <- function(
   )
 
   if (draw_corr) {
-    if (!requireNamespace("pheatmap", quietly = TRUE)) {
-      warning("Install 'pheatmap' to draw heatmap.")
-    } else {
+    if (requireNamespace("pheatmap", quietly = TRUE)) {
       cm <- cor(pruned_data, use = "pairwise.complete.obs")
-      pheatmap::pheatmap(
-        cm,
-        color           = colorRampPalette(c("blue", "white", "red"))(50),
-        main            = "Correlation Heatmap",
-        display_numbers = TRUE,
-        angle_col       = 90
-      )
-    }
+      pheatmap::pheatmap(cm,
+                         color           = colorRampPalette(c("blue","white","red"))(50),
+                         main            = "Correlation Heatmap",
+                         display_numbers = TRUE,
+                         angle_col       = 90)
+    } else warning("Install 'pheatmap' to draw heatmap.")
   }
 
-
-  #--------------------------------------------------
-  # 6) Final summary & return
-  #--------------------------------------------------
   if (verbose) {
-    original_cols <- setdiff(names(data), c(target, drop_cols))
-    numeric_cols <- names(data[, original_cols])[sapply(data[, original_cols], is.numeric)]
-    cat("\nBefore:", length(numeric_cols), "numeric cols;",
-        "After:", ncol(df_preds), "retained.\n")
-    cat("Retained columns:\n")
-    print(colnames(df_preds))
+    orig_num <- sum(sapply(data[, setdiff(names(data), c(target, drop_cols))], is.numeric))
+    cat("\nBefore:", orig_num, "numeric cols; After:", ncol(df_preds), "retained.\n")
+    cat("Retained columns:\n"); print(colnames(df_preds))
   }
 
   invisible(list(pruned_data = pruned_data, cluster_df = df_clusters))
@@ -745,11 +744,13 @@ remove_cont_multicollinearity <- function(
 #' @export
 remove_factor_multicollinearity <- function(
     df,
-    target_col     = "Likelihood_to_Recommend__Relationship",
-    drop_cols      = "date",
-    keep_cols      = character(),
-    k              = 5,
-    verbose        = TRUE
+    target_col                = "Likelihood_to_Recommend__Relationship",
+    prune_target_assoc        = 0.7,    # new: Cramer's V threshold vs target
+    prune_target_assoc_last   = TRUE,   # new: run target–assoc prune after clustering?
+    drop_cols                 = "date",
+    keep_cols                 = character(),
+    k                         = 5,
+    verbose                   = TRUE
 ) {
   #--------------------------------------------------
   # 0) Prep: require packages
@@ -777,15 +778,12 @@ remove_factor_multicollinearity <- function(
     target_col
   )
   if (length(numeric_preds) > 0 && verbose) {
-    message(
-      "Pruning numeric predictors: ",
-      paste(numeric_preds, collapse = ", ")
-    )
+    message("Pruning numeric predictors: ", paste(numeric_preds, collapse = ", "))
   }
   df <- df[, setdiff(names(df), numeric_preds), drop = FALSE]
 
   #--------------------------------------------------
-  # 1) Create factor-only data (exclude numeric target)
+  # 1) Build model_data & factor_data
   #--------------------------------------------------
   model_data  <- df %>% dplyr::select(all_of(target_col), where(~ !is.numeric(.)))
   factor_data <- model_data %>% dplyr::select(-all_of(target_col))
@@ -795,10 +793,7 @@ remove_factor_multicollinearity <- function(
   #--------------------------------------------------
   non_factor_cols <- names(factor_data)[!sapply(factor_data, is.factor)]
   if (length(non_factor_cols) > 0 && verbose) {
-    message(
-      "Pruning non-factor predictors: ",
-      paste(non_factor_cols, collapse = ", ")
-    )
+    message("Pruning non-factor predictors: ", paste(non_factor_cols, collapse = ", "))
   }
   factor_data <- factor_data[, sapply(factor_data, is.factor), drop = FALSE]
 
@@ -812,12 +807,32 @@ remove_factor_multicollinearity <- function(
     dplyr::mutate(across(everything(),        as.factor))
 
   #--------------------------------------------------
-  # 3) Compute pairwise Cramer's V
+  # 2.5) Early prune by association with target
   #--------------------------------------------------
+  valid_target_assoc <-
+    length(unique(na.omit(model_data[[target_col]]))) > 1
   cramer_v <- function(x, y) {
     tbl <- table(x, y)
     vcd::assocstats(tbl)$cramer
   }
+
+  if (!prune_target_assoc_last && valid_target_assoc && ncol(factor_data) > 0) {
+    t_assoc <- sapply(factor_data, function(x)
+      cramer_v(x, model_data[[target_col]]))
+    drop_t  <- names(t_assoc)[abs(t_assoc) > prune_target_assoc]
+    if (length(drop_t) > 0) {
+      if (verbose) message(
+        "Dropping ", length(drop_t),
+        " predictors w/ Cramer's V> ", prune_target_assoc,
+        " vs target: ", paste(drop_t, collapse = ", ")
+      )
+      factor_data <- factor_data[, setdiff(names(factor_data), drop_t), drop = FALSE]
+    }
+  }
+
+  #--------------------------------------------------
+  # 3) Compute pairwise Cramer's V among predictors
+  #--------------------------------------------------
   vars       <- colnames(factor_data)
   n_vars     <- length(vars)
   cramer_mat <- matrix(0, n_vars, n_vars, dimnames = list(vars, vars))
@@ -907,7 +922,8 @@ remove_factor_multicollinearity <- function(
   #--------------------------------------------------
   if (ncol(factor_data_reduced) > 1) {
     vars2 <- colnames(factor_data_reduced)
-    cm2   <- matrix(0, length(vars2), length(vars2), dimnames = list(vars2, vars2))
+    cm2   <- matrix(0, length(vars2), length(vars2),
+                    dimnames = list(vars2, vars2))
     for (i in seq_len(length(vars2) - 1)) {
       for (j in seq(i + 1, length(vars2))) {
         v2 <- cramer_v(factor_data_reduced[[i]], factor_data_reduced[[j]])
@@ -916,9 +932,31 @@ remove_factor_multicollinearity <- function(
       }
     }
     hc2 <- hclust(as.dist(1 - cm2), method = "complete")
-    plot(hc2, main = "Dendrogram AFTER Factor Grouping Selection", xlab = "", sub = "")
+    plot(hc2, main = "Dendrogram AFTER Factor Grouping Selection",
+         xlab = "", sub = "")
   } else {
     message("\nOnly one factor retained; no second dendrogram.")
+  }
+
+  #--------------------------------------------------
+  # 8.5) Late prune by association with target
+  #--------------------------------------------------
+  if (prune_target_assoc_last && valid_target_assoc &&
+      ncol(factor_data_reduced) > 0) {
+    t_assoc2 <- sapply(factor_data_reduced, function(x)
+      cramer_v(x, model_data[[target_col]]))
+    drop2   <- names(t_assoc2)[abs(t_assoc2) > prune_target_assoc]
+    if (length(drop2) > 0) {
+      if (verbose) message(
+        "Dropping ", length(drop2),
+        " predictors w/ Cramer's V> ", prune_target_assoc,
+        " vs target (post-grouping): ",
+        paste(drop2, collapse = ", ")
+      )
+      factor_data_reduced <- factor_data_reduced[,
+                                                 setdiff(names(factor_data_reduced), drop2), drop = FALSE]
+      df_clusters$removed[df_clusters$variable %in% drop2] <- TRUE
+    }
   }
 
   #--------------------------------------------------
@@ -933,7 +971,10 @@ remove_factor_multicollinearity <- function(
     print(colnames(factor_data_reduced))
   }
 
-  invisible(list(pruned_data = factor_data_reduced, cluster_df = df_clusters))
+  invisible(list(
+    pruned_data = factor_data_reduced,
+    cluster_df  = df_clusters
+  ))
 }
 
 
