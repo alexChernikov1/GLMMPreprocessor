@@ -10,26 +10,6 @@ if ("GLMMPreprocessor" %in% rownames(installed.packages())) {
 devtools::install_github("alexChernikov1/GLMMPreprocessor", force = TRUE, upgrade = "never")
 ```
 
-    ## ── R CMD build ─────────────────────────────────────────────────────────────────
-    
-    ## checking for file ‘C:0EZwD712046fa82aec-GLMMPreprocessor-2cc15c9/DESCRIPTION’ … ✔ checking for file ‘C:0EZwD712046fa82aec-GLMMPreprocessor-2cc15c9/DESCRIPTION’
-    
-    ## ─ preparing ‘GLMMPreprocessor’:
-    
-    ## checking DESCRIPTION meta-information … checking DESCRIPTION meta-information … ✔ checking DESCRIPTION meta-information
-    
-    ## ─ checking for LF line-endings in source and make files and shell scripts
-    
-    ## ─ checking for empty or unneeded directories
-    
-    ## Omitted ‘LazyData’ from DESCRIPTION
-    
-    ## ─ building ‘GLMMPreprocessor_0.1.0.tar.gz’
-    
-    ## 
-    
-    ## 
-
 ``` r
 # Load the package
 library(GLMMPreprocessor)
