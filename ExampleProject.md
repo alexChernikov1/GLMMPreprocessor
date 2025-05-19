@@ -1,6 +1,13 @@
 ExampleProject
 ================
 2025-05-19
+---
+
+## 1 · Install or update the package
+
+Ensures that the latest development build of **GLMMPreprocessor** is used by removing any old installation and installing directly from GitHub.
+
+
 
 ``` r
 if ("GLMMPreprocessor" %in% rownames(installed.packages())) {
@@ -20,6 +27,10 @@ devtools::install_github("alexChernikov1/GLMMPreprocessor", force = TRUE, upgrad
     ##       ─  building 'GLMMPreprocessor_0.1.0.tar.gz'
     ##      
     ## 
+    
+## 2 · Load required libraries
+
+Loads the core **GLMMPreprocessor** package along with various helper libraries for data preprocessing, modelling, and visualization.
 
 ``` r
 # Load the package
@@ -67,6 +78,10 @@ library(foreach)
 library(doParallel)
 ```
 
+## 3 · Load the example data
+
+Reads in the bundled U.S. domestic-flight dataset (over 4 million rows) and inspects its structure to familiarize with variable types (numeric vs. factor).
+
 ``` r
 load("~/GLMMPreprocessor_data/airtraffic.RData")
 str(airtraffic)
@@ -90,6 +105,10 @@ str(airtraffic)
     ##  $ DESTINATION_LONGITUDE: num [1:4045608] -122.3 -80.1 -80.9 -80.3 -150 ...
     ##  $ ARRIVAL_DELAY_BINOM  : int [1:4045608] 0 0 0 0 0 0 0 0 0 0 ...
     ##  $ ROUTE                : Factor w/ 2735 levels "ABQ_ATL","ABQ_BWI",..: 38 1375 2420 1366 2356 2443 1308 1342 2425 1271 ...
+
+## 4 · Screen numeric predictors
+
+Applies `remove_cont_multicollinearity()` to prune numeric features, removing those with high pairwise correlation or high variance inflation, and visualizes the remaining correlations.
 
 ``` r
 # Step 1: Filter numeric features
@@ -146,6 +165,9 @@ cont_result <- invisible(remove_cont_multicollinearity(
     ## [1] "MONTH"                 "SCHEDULED_DEPARTURE"   "SCHEDULED_TIME"       
     ## [4] "ORIGIN_LATITUDE"       "ORIGIN_LONGITUDE"      "DESTINATION_LATITUDE" 
     ## [7] "DESTINATION_LONGITUDE"
+## 5 · Screen categorical predictors
+
+Uses `remove_factor_multicollinearity()` to cluster and prune high-cardinality or highly-associated factors (via Cramer's V), optionally dropping those overly correlated with the outcome.
 
 ``` r
 # Step 2: Filter categorical features
@@ -193,6 +215,9 @@ cat_result <- invisible(remove_factor_multicollinearity(
     ## Retained columns:
     ## [1] "DAY_OF_WEEK"         "AIRLINE"             "ORIGIN_AIRPORT"     
     ## [4] "DESTINATION_AIRPORT"
+## 6 · Assemble the modelling dataset
+
+Combines the retained numeric and categorical predictors with the binary target variable before modelling.
 
 ``` r
 # Step 3: Extract selected column names
@@ -203,6 +228,7 @@ categorical_cols <- names(cat_result$pruned_data)                               
 # Note: 'DAY' column is manually added back here if needed
 df_cleaned <- airtraffic[, c("ARRIVAL_DELAY_BINOM", numeric_cols, categorical_cols), drop = FALSE]
 ```
+
 
 ``` r
 print(str(df_cleaned))
@@ -222,6 +248,10 @@ print(str(df_cleaned))
     ##  $ ORIGIN_AIRPORT       : Factor w/ 76 levels "ABQ","ANC","ATL",..: 2 36 67 36 66 67 35 36 67 35 ...
     ##  $ DESTINATION_AIRPORT  : Factor w/ 76 levels "ABQ","ANC","ATL",..: 66 54 15 44 2 46 46 15 21 3 ...
     ## NULL
+    
+## 7 · Configure and prepare the GLMM pre‑processor
+
+Defines random-effect grouping variables, sets the train/test split fraction and random seed, then runs the `preprocess()` method to scale, encode, and (optionally) undersample the training set.
 
 ``` r
 # Set modeling controls
@@ -243,6 +273,10 @@ prep_out <- glmm$preprocess(
 ```
 
     ## After undersampling: train rows = 7558 (balanced 0/1)
+    
+## 8 · Run stepwise BIC-guided model search
+
+Executes `stepwise_bic_glmm()`, which adds or removes polynomial and interaction terms based on improvements (or tolerated worsening) in the Bayesian Information Criterion.
 
 ``` r
 fit_result <- glmm$stepwise_bic_glmm(
@@ -421,6 +455,9 @@ fit_result <- glmm$stepwise_bic_glmm(
     ##  -  SCHEDULED_DEPARTURE:ORIGIN_LATITUDE  (BIC = 10095.3)
 
     ##  -  I(SCHEDULED_DEPARTURE^2)  (BIC = 10425.26)
+## 9 · Inspect the final GLMM
+
+Reviews the selected generalized linear mixed model, including both fixed-effect coefficients and random-effect standard deviations, to understand the final model structure.
 
 ``` r
 print(fit_result$fit)
@@ -452,6 +489,10 @@ print(fit_result$fit)
     ##                              0.43755                              -0.08058  
     ##   SCHEDULED_DEPARTURE:SCHEDULED_TIME  SCHEDULED_DEPARTURE:ORIGIN_LONGITUDE  
     ##                             -0.07600                               0.07237
+    
+## 10 · Visualize marginal relationships
+
+Generates population-average effect plots for single predictors and two-way interaction surfaces, illustrating how the predicted probability changes across predictor values.
 
 ``` r
 # Visualize marginal effect of a predictor
