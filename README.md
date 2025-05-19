@@ -22,6 +22,7 @@ cont_result <- remove_cont_multicollinearity(
   data                  = df,             # full dataframe
   target                = "TargetColumn", # name of the target variable (0/1 or binary factor)
   target_cor_threshold  = 0.7,            # drop predictors with |corr| > 0.7 vs target
+  target_corr_last      = TRUE,           # remove features correlated with target after VIF pruning
   cor_threshold         = 0.7,            # drop one of any two predictors with |corr| > 0.7
   vif_threshold         = 5,              # drop predictors until all VIFs < 5
   verbose               = TRUE,           # print diagnostic messages
@@ -41,8 +42,10 @@ cont_result <- remove_cont_multicollinearity(
 cat_result <- remove_factor_multicollinearity(
   df             = df,                   # original dataframe
   target_col     = "TargetColumn",       # name of the target (for filtering non-factors)
-  drop_cols      = "date",               # columns to drop before clustering
+  prune_target_assoc        = 0.7,       # new: Cramer's V threshold vs target
+  prune_target_assoc_last   = TRUE,      # new: run target–assoc prune after clustering?
   keep_cols      = character(),          # factors to force-keep
+  drop_cols      = "date",               # columns to drop before clustering
   k              = 5,                    # number of clusters
   verbose        = TRUE                  # print diagnostic messages
 )
