@@ -6,21 +6,6 @@ output:
 date: "2025-05-19"
 ---
 
-```{r setup-conditional-output-limit, include=FALSE}
-library(knitr)
-library(evaluate)
-
-knit_hooks$set(output = function(x, options) {
-  if (isTRUE(options$limit_output)) {
-    lines <- strsplit(x, "\n")[[1]]
-    truncated <- head(lines, 5)
-    if (length(lines) > 5) truncated <- c(truncated, "... [output truncated]")
-    return(paste(truncated, collapse = "\n"))
-  }
-  return(x)
-})
-```
-
 
 ```{r, message=FALSE, warning=FALSE}
 if ("GLMMPreprocessor" %in% rownames(installed.packages())) {
@@ -177,5 +162,20 @@ glmm$plot_marginal_interaction(
   vars      = c("SCHEDULED_DEPARTURE", "ORIGIN_LONGITUDE")  # variables for interaction plot
 )
 ```
+```{r}
+# Joint marginal effect (e.g., cubic schedule × distance)
+glmm$plot_marginal_interaction(
+  model_fit = fit_result$fit,                   # fitted model
+  df        = glmm$train_df,                    # training data
+  vars      = c("SCHEDULED_DEPARTURE", "ORIGIN_LATITUDE")  # variables for interaction plot
+)
+```
 
-
+```{r}
+# Joint marginal effect (e.g., cubic schedule × distance)
+glmm$plot_marginal_interaction(
+  model_fit = fit_result$fit,                   # fitted model
+  df        = glmm$train_df,                    # training data
+  vars      = c("SCHEDULED_DEPARTURE", "SCHEDULED_TIME")  # variables for interaction plot
+)
+```
