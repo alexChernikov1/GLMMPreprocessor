@@ -1,7 +1,7 @@
 Multicollinearity Tools
 =======================
 
-This package provides robust tools for identifying and removing multicollinearity in predictors, both numeric and categorical. It includes VIF-based filtering, correlation pruning, and hierarchical clustering for categorical variables based on Cramer’s V.
+This package provides robust tools for identifying and removing multicollinearity in predictors, both numeric and categorical. It includes VIF-based filtering, correlation pruning, and hierarchical clustering for categorical variables based on Cramer’s V. To see an implementation of the package [See detailed analysis](ExampleProject.md)
 
 Features
 --------
