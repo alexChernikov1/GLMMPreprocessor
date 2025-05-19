@@ -43,7 +43,7 @@ cat_result <- remove_factor_multicollinearity(
   df             = df,                   # original dataframe
   target_col     = "TargetColumn",       # name of the target (for filtering non-factors)
   prune_target_assoc        = 0.7,       # new: Cramer's V threshold vs target
-  prune_target_assoc_last   = TRUE,      # new: run target–assoc prune after clustering?
+  prune_target_assoc_last   = TRUE,      # new: run target–assoc prune after clustering
   keep_cols      = character(),          # factors to force-keep
   drop_cols      = "date",               # columns to drop before clustering
   k              = 5,                    # number of clusters
