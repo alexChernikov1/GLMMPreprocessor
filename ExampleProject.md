@@ -116,7 +116,7 @@ cont_result <- invisible(remove_cont_multicollinearity(
   data                  = airtraffic,             # full dataframe
   target                = "ARRIVAL_DELAY_BINOM", # name of the target variable (must be 0/1 numeric or binary factor)
   target_cor_threshold  = 0.7,            # threshold to drop predictors highly correlated with target
-  target_corr_last     = TRUE,
+  target_corr_last     = TRUE,            # remove features correlated with target after VIF pruning
   cor_threshold         = 0.7,            # threshold to drop one of any two highly correlated predictors
   vif_threshold         = 5,              # max acceptable variance inflation factor
   verbose               = TRUE,           # print messages about dropped variables
@@ -175,7 +175,7 @@ cat_result <- invisible(remove_factor_multicollinearity(
   df             = airtraffic,                   # original dataframe with factors
   target_col     = "ARRIVAL_DELAY_BINOM",       # name of the target variable
   prune_target_assoc        = 0.7,    # new: Cramer's V threshold vs target
-  prune_target_assoc_last   = TRUE,   # new: run target–assoc prune after clustering?
+  prune_target_assoc_last   = TRUE,   # new: run target–assoc prune after clustering
   keep_cols      = c(),          # factors you want to force-keep
   drop_cols      = c("DAY"),               # drop date before computing factor similarity
   k              = 4,                     # number of clusters to use in hierarchical clustering
