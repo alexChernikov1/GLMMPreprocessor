@@ -1,0 +1,181 @@
+---
+title: "ExampleProject"
+output:
+  github_document:
+    html_preview: true
+date: "2025-05-19"
+---
+
+```{r setup-conditional-output-limit, include=FALSE}
+library(knitr)
+library(evaluate)
+
+knit_hooks$set(output = function(x, options) {
+  if (isTRUE(options$limit_output)) {
+    lines <- strsplit(x, "\n")[[1]]
+    truncated <- head(lines, 5)
+    if (length(lines) > 5) truncated <- c(truncated, "... [output truncated]")
+    return(paste(truncated, collapse = "\n"))
+  }
+  return(x)
+})
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+if ("GLMMPreprocessor" %in% rownames(installed.packages())) {
+  remove.packages("GLMMPreprocessor")
+}
+
+devtools::install_github("alexChernikov1/GLMMPreprocessor", force = TRUE, upgrade = "never")
+# Load the package
+library(GLMMPreprocessor)
+
+library(usdm)
+library(FactoMineR)
+library(factoextra)
+library(rpart.plot)
+library(glmnet)
+library(randomForest)
+library(glmnet)
+library(caret)
+library(tidyr)
+library(dplyr)
+library(nlme)
+library(lubridate)
+library(lme4)
+library(car)
+library(lmerTest)  # For p-values in mixed models
+library(ggplot2)
+library(DescTools)  # for CramerV
+library(mice)
+library(httr)
+library(jsonlite)
+library(dplyr)
+library(vcd)  
+library(pheatmap)
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+library(httr)
+library(jsonlite)
+library(FactoMineR)
+library(factoextra)
+library(glmnet)
+library(dplyr)
+library(randomForest)
+library(pdp)
+library(R6)
+library(lme4)
+library(dplyr)
+library(tibble)
+library(foreach)
+library(doParallel)
+```
+
+```{r}
+load("~/GLMMPreprocessor_data/airtraffic.RData")
+str(airtraffic)
+```
+
+```{r}
+# Step 1: Filter numeric features
+cont_result <- invisible(remove_cont_multicollinearity(
+  data                  = airtraffic,             # full dataframe
+  target                = "ARRIVAL_DELAY_BINOM", # name of the target variable (must be 0/1 numeric or binary factor)
+  target_cor_threshold  = 0.7,            # threshold to drop predictors highly correlated with target
+  target_corr_last     = TRUE,
+  cor_threshold         = 0.7,            # threshold to drop one of any two highly correlated predictors
+  vif_threshold         = 5,              # max acceptable variance inflation factor
+  verbose               = TRUE,           # print messages about dropped variables
+  keep_cols             = c(),    # predictors you want to force-keep
+  drop_cols             = c("DAY"),    # predictors you want to drop before filtering
+  draw_corr             = TRUE           # whether to plot the correlation heatmap
+))
+```
+
+```{r}
+# Step 2: Filter categorical features
+cat_result <- invisible(remove_factor_multicollinearity(
+  df             = airtraffic,                   # original dataframe with factors
+  target_col     = "ARRIVAL_DELAY_BINOM",       # name of the target variable
+  prune_target_assoc        = 0.7,    # new: Cramer's V threshold vs target
+  prune_target_assoc_last   = TRUE,   # new: run target–assoc prune after clustering?
+  keep_cols      = c(),          # factors you want to force-keep
+  drop_cols      = c("DAY"),               # drop date before computing factor similarity
+  k              = 4,                     # number of clusters to use in hierarchical clustering
+  verbose        = TRUE
+))
+```
+
+```{r}
+# Step 3: Extract selected column names
+numeric_cols     <- setdiff(names(cont_result$pruned_data), "ARRIVAL_DELAY_BINOM")  # selected numeric features
+categorical_cols <- names(cat_result$pruned_data)                                   # selected factor features
+
+# Step 4: Combine selected columns from original df
+# Note: 'DAY' column is manually added back here if needed
+df_cleaned <- airtraffic[, c("ARRIVAL_DELAY_BINOM", numeric_cols, categorical_cols), drop = FALSE]
+```
+
+```{r}
+print(str(df_cleaned))
+```
+```{r}
+# Set modeling controls
+random_effects  <- c("MONTH", "AIRLINE","ORIGIN_AIRPORT","DESTINATION_AIRPORT")   # grouping variables for random effects
+no_interactions <- c()     # fixed effects to exclude from interaction terms
+TRAIN_PCT       <- 0.005                                       # percentage of data to use for training
+RAND_SEED       <- 663                                        # seed for reproducibility
+
+# Prepare preprocessor
+glmm <- GLMMPreprocessor$new(target = "ARRIVAL_DELAY_BINOM")      # initialize with binary target variable
+
+# Apply to a single data frame
+prep_out <- glmm$preprocess(
+  df_cleaned,
+  train_pct         = TRAIN_PCT,        # fraction of rows to use in training set
+  undersample_train = TRUE,             # whether to undersample majority class
+  random_state      = RAND_SEED         # seed for reproducible sampling
+)
+```
+
+```{r}
+fit_result <- glmm$stepwise_bic_glmm(
+  X                 = prep_out$X,
+  y                 = prep_out$y,
+  random_effects    = random_effects,
+  no_interactions   = no_interactions,
+  poly              = 3,
+  bic_tol           = 0.5,
+  max_add_steps     = 1000,
+  max_drop_steps    = 1000,
+  cores             = max(1, parallel::detectCores() - 1),
+  re_var_threshold  = 1e-6,
+  int_var_threshold = 1e-6
+)
+```
+
+```{r}
+print(fit_result$fit)
+```
+
+```{r}
+# Visualize marginal effect of a predictor
+glmm$plot_marginal(
+  model_fit = fit_result$fit,                   # fitted model
+  df        = glmm$train_df,                    # training data used for centering/scaling
+  focal_var = "SCHEDULED_DEPARTURE"                  # focal variable to visualize
+)
+```
+
+```{r}
+# Joint marginal effect (e.g., cubic schedule × distance)
+glmm$plot_marginal_interaction(
+  model_fit = fit_result$fit,                   # fitted model
+  df        = glmm$train_df,                    # training data
+  vars      = c("SCHEDULED_DEPARTURE", "ORIGIN_LONGITUDE")  # variables for interaction plot
+)
+```
+
+

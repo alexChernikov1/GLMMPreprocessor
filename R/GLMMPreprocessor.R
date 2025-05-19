@@ -340,9 +340,13 @@ GLMMPreprocessor <- R6::R6Class(
 
     plot_marginal = function(model_fit,
                              df,
-                             focal_var     = "SCHEDULED_DEPARTURE",
+                             focal_var     = NULL,
                              n_points      = 200,
                              hold_distance = "mean") {
+      if (is.null(focal_var)) {
+        focal_var <- names(df)[1]
+        message("Using first column of df as focal_var: ", focal_var)
+      }
       if (!inherits(model_fit, "glmerMod") && !inherits(model_fit, "glm"))
         stop("`model_fit` must be a fitted model returned by stepwise_bic_glmm()")
 
@@ -414,7 +418,7 @@ GLMMPreprocessor <- R6::R6Class(
         ggplot2::geom_line(size = 1) +
         ggplot2::labs(
           x = paste(focal_var, "(original scale)"),
-          y = "P(delay = 1)  (fixed effects only)",
+          y = paste0("P(", self$target, " = 1)  (fixed effects only)"),
           title = paste("Marginal effect of", focal_var)
         ) +
         ggplot2::theme_minimal()
@@ -424,10 +428,31 @@ GLMMPreprocessor <- R6::R6Class(
     ## 2D marginal plot
     plot_marginal_interaction = function(model_fit,
                                          df,
-                                         vars        = c("SCHEDULED_DEPARTURE", "DISTANCE"),
+                                         vars        = NULL,
                                          n_grid      = 60,
                                          hold_method = c(mean = mean, median = median)) {
+      # infer defaults if vars is not provided
+      if (is.null(vars)) {
+        numeric_vars <- names(df)[sapply(df, is.numeric)]
+        if (length(numeric_vars) < 2)
+          stop("Need at least two numeric columns in `df` to infer interaction plot variables.")
+        vars <- numeric_vars[1:2]
+        message("Using first two numeric columns as vars: ", paste(vars, collapse = ", "))
+      }
+
       stopifnot(length(vars) == 2)
+
+      # normalize hold_method if passed as a string
+      if (is.character(hold_method)) {
+        hold_method <- switch(
+          hold_method,
+          mean   = c(mean = mean, median = median),
+          median = c(mean = median, median = median),
+          stop("`hold_method` must be 'mean', 'median', or a named list of functions.")
+        )
+      }
+
+
       v1 <- vars[1]
       v2 <- vars[2]
 
@@ -492,7 +517,7 @@ GLMMPreprocessor <- R6::R6Class(
       ggplot(grid, aes(x = v1_orig, y = v2_orig, z = prob)) +
         geom_raster(aes(fill = prob), interpolate = TRUE) +
         geom_contour(colour = "white", alpha = 0.6) +
-        scale_fill_viridis_c(name = "P(delay = 1)") +
+        scale_fill_viridis_c(name = paste0("P(", self$target, " = 1)"))+
         labs(
           x = paste(v1, "(original)"),
           y = paste(v2, "(original)"),
