@@ -10,25 +10,25 @@ if ("GLMMPreprocessor" %in% rownames(installed.packages())) {
 devtools::install_github("alexChernikov1/GLMMPreprocessor", force = TRUE, upgrade = "never")
 ```
 
-## ── R CMD build ─────────────────────────────────────────────────────────────────
-
-## checking for file ‘C:0EZwD712046fa82aec-GLMMPreprocessor-2cc15c9/DESCRIPTION’ … ✔ checking for file ‘C:0EZwD712046fa82aec-GLMMPreprocessor-2cc15c9/DESCRIPTION’
-
-## ─ preparing ‘GLMMPreprocessor’:
-
-## checking DESCRIPTION meta-information … checking DESCRIPTION meta-information … ✔ checking DESCRIPTION meta-information
-
-## ─ checking for LF line-endings in source and make files and shell scripts
-
-## ─ checking for empty or unneeded directories
-
-## Omitted ‘LazyData’ from DESCRIPTION
-
-## ─ building ‘GLMMPreprocessor_0.1.0.tar.gz’
-
-## 
-
-## 
+    ## ── R CMD build ─────────────────────────────────────────────────────────────────
+    
+    ## checking for file ‘C:0EZwD712046fa82aec-GLMMPreprocessor-2cc15c9/DESCRIPTION’ … ✔ checking for file ‘C:0EZwD712046fa82aec-GLMMPreprocessor-2cc15c9/DESCRIPTION’
+    
+    ## ─ preparing ‘GLMMPreprocessor’:
+    
+    ## checking DESCRIPTION meta-information … checking DESCRIPTION meta-information … ✔ checking DESCRIPTION meta-information
+    
+    ## ─ checking for LF line-endings in source and make files and shell scripts
+    
+    ## ─ checking for empty or unneeded directories
+    
+    ## Omitted ‘LazyData’ from DESCRIPTION
+    
+    ## ─ building ‘GLMMPreprocessor_0.1.0.tar.gz’
+    
+    ## 
+    
+    ## 
 
 ``` r
 # Load the package
@@ -78,44 +78,43 @@ library(doParallel)
 
 ``` r
 load("~/GLMMPreprocessor_data/airtraffic.RData")
-str(airtraffic)
 ```
 
-## tibble \[4,045,608 × 17\] (S3: tbl_df/tbl/data.frame)
-
-## \$ YEAR : num \[1:4045608\] 2015 2015 2015 2015 2015 …
-
-## \$ MONTH : num \[1:4045608\] 1 1 1 1 1 1 1 1 1 1 …
-
-## \$ DAY : num \[1:4045608\] 1 1 1 1 1 1 1 1 1 1 …
-
-## \$ DAY_OF_WEEK : Factor w/ 7 levels “1”,“2”,“3”,“4”,..: 4 4 4 4 4 4 4 4 4 4 …
-
-## \$ AIRLINE : Factor w/ 14 levels “AA”,“AS”,“B6”,..: 2 1 12 1 2 4 9 12 1 4 …
-
-## \$ TAIL_NUMBER : Factor w/ 4888 levels “7819A”,“7820L”,..: 1618 1552 422 1512 2127 1137 2760 2405 1557 3929 …
-
-## \$ ORIGIN_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 2 36 67 36 66 67 35 36 67 35 …
-
-## \$ DESTINATION_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 66 54 15 44 2 46 46 15 21 3 …
-
-## \$ SCHEDULED_DEPARTURE : num \[1:4045608\] 5 10 20 20 25 25 25 30 30 30 …
-
-## \$ SCHEDULED_TIME : num \[1:4045608\] 205 280 286 285 235 217 181 273 195 221 …
-
-## \$ DISTANCE : num \[1:4045608\] 1448 2330 2296 2342 1448 …
-
-## \$ ORIGIN_LATITUDE : num \[1:4045608\] 61.2 33.9 37.6 33.9 47.4 …
-
-## \$ ORIGIN_LONGITUDE : num \[1:4045608\] -150 -118 -122 -118 -122 …
-
-## \$ DESTINATION_LATITUDE : num \[1:4045608\] 47.4 26.7 35.2 25.8 61.2 …
-
-## \$ DESTINATION_LONGITUDE: num \[1:4045608\] -122.3 -80.1 -80.9 -80.3 -150 …
-
-## \$ ARRIVAL_DELAY_BINOM : int \[1:4045608\] 0 0 0 0 0 0 0 0 0 0 …
-
-## \$ ROUTE : Factor w/ 2735 levels “ABQ_ATL”,“ABQ_BWI”,..: 38 1375 2420 1366 2356 2443 1308 1342 2425 1271 …
+    ## tibble \[4,045,608 × 17\] (S3: tbl_df/tbl/data.frame)
+    
+    ## \$ YEAR : num \[1:4045608\] 2015 2015 2015 2015 2015 …
+    
+    ## \$ MONTH : num \[1:4045608\] 1 1 1 1 1 1 1 1 1 1 …
+    
+    ## \$ DAY : num \[1:4045608\] 1 1 1 1 1 1 1 1 1 1 …
+    
+    ## \$ DAY_OF_WEEK : Factor w/ 7 levels “1”,“2”,“3”,“4”,..: 4 4 4 4 4 4 4 4 4 4 …
+    
+    ## \$ AIRLINE : Factor w/ 14 levels “AA”,“AS”,“B6”,..: 2 1 12 1 2 4 9 12 1 4 …
+    
+    ## \$ TAIL_NUMBER : Factor w/ 4888 levels “7819A”,“7820L”,..: 1618 1552 422 1512 2127 1137 2760 2405 1557 3929 …
+    
+    ## \$ ORIGIN_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 2 36 67 36 66 67 35 36 67 35 …
+    
+    ## \$ DESTINATION_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 66 54 15 44 2 46 46 15 21 3 …
+    
+    ## \$ SCHEDULED_DEPARTURE : num \[1:4045608\] 5 10 20 20 25 25 25 30 30 30 …
+    
+    ## \$ SCHEDULED_TIME : num \[1:4045608\] 205 280 286 285 235 217 181 273 195 221 …
+    
+    ## \$ DISTANCE : num \[1:4045608\] 1448 2330 2296 2342 1448 …
+    
+    ## \$ ORIGIN_LATITUDE : num \[1:4045608\] 61.2 33.9 37.6 33.9 47.4 …
+    
+    ## \$ ORIGIN_LONGITUDE : num \[1:4045608\] -150 -118 -122 -118 -122 …
+    
+    ## \$ DESTINATION_LATITUDE : num \[1:4045608\] 47.4 26.7 35.2 25.8 61.2 …
+    
+    ## \$ DESTINATION_LONGITUDE: num \[1:4045608\] -122.3 -80.1 -80.9 -80.3 -150 …
+    
+    ## \$ ARRIVAL_DELAY_BINOM : int \[1:4045608\] 0 0 0 0 0 0 0 0 0 0 …
+    
+    ## \$ ROUTE : Factor w/ 2735 levels “ABQ_ATL”,“ABQ_BWI”,..: 38 1375 2420 1366 2356 2443 1308 1342 2425 1271 …
 
 ``` r
 # Step 1: Filter numeric features
@@ -154,29 +153,31 @@ cont_result <- invisible(remove_cont_multicollinearity(
 
     ##   Feature Group 7: DESTINATION_LONGITUDE
 
-## variable cluster removed
+    ## variable cluster removed
+    
+    ## MONTH MONTH 1 FALSE
+    
+    ## SCHEDULED_DEPARTURE SCHEDULED_DEPARTURE 2 FALSE
+    
+    ## SCHEDULED_TIME SCHEDULED_TIME 3 FALSE
+    
+    ## DISTANCE DISTANCE 3 TRUE
+    
+    ## ORIGIN_LATITUDE ORIGIN_LATITUDE 4 FALSE
+    
+    ## ORIGIN_LONGITUDE ORIGIN_LONGITUDE 5 FALSE
+    
+    ## DESTINATION_LATITUDE DESTINATION_LATITUDE 6 FALSE
+    
+    ## DESTINATION_LONGITUDE DESTINATION_LONGITUDE 7 FALSE
 
-## MONTH MONTH 1 FALSE
+![](ExampleProject_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->
 
-## SCHEDULED_DEPARTURE SCHEDULED_DEPARTURE 2 FALSE
-
-## SCHEDULED_TIME SCHEDULED_TIME 3 FALSE
-
-## DISTANCE DISTANCE 3 TRUE
-
-## ORIGIN_LATITUDE ORIGIN_LATITUDE 4 FALSE
-
-## ORIGIN_LONGITUDE ORIGIN_LONGITUDE 5 FALSE
-
-## DESTINATION_LATITUDE DESTINATION_LATITUDE 6 FALSE
-
-## DESTINATION_LONGITUDE DESTINATION_LONGITUDE 7 FALSE
-
-![](ExampleProject_files/figure-gfm/unnamed-chunk-3-1.png)<!-- -->\##
-\## Before: 9 numeric cols; After: 7 retained. \## Retained columns: \##
-\[1\] “MONTH” “SCHEDULED_DEPARTURE” “SCHEDULED_TIME”  
-\## \[4\] “ORIGIN_LATITUDE” “ORIGIN_LONGITUDE” “DESTINATION_LATITUDE”
-\## \[7\] “DESTINATION_LONGITUDE”
+    ## Before: 9 numeric cols; After: 7 retained. 
+    ## Retained columns: 
+    ## \[1\] “MONTH” “SCHEDULED_DEPARTURE” “SCHEDULED_TIME”  
+    ## \[4\] “ORIGIN_LATITUDE” “ORIGIN_LONGITUDE” “DESTINATION_LATITUDE”
+    ## \[7\] “DESTINATION_LONGITUDE”
 
 ``` r
 # Step 2: Filter categorical features
@@ -196,18 +197,20 @@ cat_result <- invisible(remove_factor_multicollinearity(
 
     ## Pruning numeric predictors: YEAR, MONTH, SCHEDULED_DEPARTURE, SCHEDULED_TIME, DISTANCE, ORIGIN_LATITUDE, ORIGIN_LONGITUDE, DESTINATION_LATITUDE, DESTINATION_LONGITUDE
 
-![](ExampleProject_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->\##
-\## — Cluster Membership and NA Counts — \## \# A tibble: 6 × 3 \## \#
-Groups: cluster \[4\] \## variable cluster NA_count \## <chr> <chr>
-<int> \## 1 DAY_OF_WEEK 1 0 \## 2 AIRLINE 2 0 \## 3 TAIL_NUMBER 2 0 \##
-4 ORIGIN_AIRPORT 3 0 \## 5 ROUTE 3 0 \## 6 DESTINATION_AIRPORT 4 0 \##
-\## Feature Group summary (chosen / others): \## Feature Group 1:
-DAY_OF_WEEK \## Feature Group 2: AIRLINE / TAIL_NUMBER \## Feature Group
-3: ORIGIN_AIRPORT / ROUTE \## Feature Group 4: DESTINATION_AIRPORT
-![](ExampleProject_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->\##
-\## Before: 6 factor cols; After: 4 retained. \## Retained columns: \##
-\[1\] “DAY_OF_WEEK” “AIRLINE” “ORIGIN_AIRPORT”  
-\## \[4\] “DESTINATION_AIRPORT”
+![](ExampleProject_files/figure-gfm/unnamed-chunk-4-1.png)<!-- -->
+
+    \##
+    \## — Cluster Membership and NA Counts — 
+    \## Feature Group summary (chosen / others): 
+    \## Feature Group 1: DAY_OF_WEEK 
+    \## Feature Group 2: AIRLINE / TAIL_NUMBER 
+    \## Feature Group 3: ORIGIN_AIRPORT / ROUTE 
+    \## Feature Group 4: DESTINATION_AIRPORT
+![](ExampleProject_files/figure-gfm/unnamed-chunk-4-2.png)<!-- -->
+
+    \##
+    \## Before: 6 factor cols; After: 4 retained. 
+    \## Retained columns: “DAY_OF_WEEK” “AIRLINE” “ORIGIN_AIRPORT” “DESTINATION_AIRPORT”
 
 ``` r
 # Step 3: Extract selected column names
@@ -223,31 +226,31 @@ df_cleaned <- airtraffic[, c("ARRIVAL_DELAY_BINOM", numeric_cols, categorical_co
 str(df_cleaned)
 ```
 
-## tibble \[4,045,608 × 12\] (S3: tbl_df/tbl/data.frame)
-
-## \$ ARRIVAL_DELAY_BINOM : int \[1:4045608\] 0 0 0 0 0 0 0 0 0 0 …
-
-## \$ MONTH : num \[1:4045608\] 1 1 1 1 1 1 1 1 1 1 …
-
-## \$ SCHEDULED_DEPARTURE : num \[1:4045608\] 5 10 20 20 25 25 25 30 30 30 …
-
-## \$ SCHEDULED_TIME : num \[1:4045608\] 205 280 286 285 235 217 181 273 195 221 …
-
-## \$ ORIGIN_LATITUDE : num \[1:4045608\] 61.2 33.9 37.6 33.9 47.4 …
-
-## \$ ORIGIN_LONGITUDE : num \[1:4045608\] -150 -118 -122 -118 -122 …
-
-## \$ DESTINATION_LATITUDE : num \[1:4045608\] 47.4 26.7 35.2 25.8 61.2 …
-
-## \$ DESTINATION_LONGITUDE: num \[1:4045608\] -122.3 -80.1 -80.9 -80.3 -150 …
-
-## \$ DAY_OF_WEEK : Factor w/ 7 levels “1”,“2”,“3”,“4”,..: 4 4 4 4 4 4 4 4 4 4 …
-
-## \$ AIRLINE : Factor w/ 14 levels “AA”,“AS”,“B6”,..: 2 1 12 1 2 4 9 12 1 4 …
-
-## \$ ORIGIN_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 2 36 67 36 66 67 35 36 67 35 …
-
-## \$ DESTINATION_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 66 54 15 44 2 46 46 15 21 3 …
+    ## tibble \[4,045,608 × 12\] (S3: tbl_df/tbl/data.frame)
+    
+    ## \$ ARRIVAL_DELAY_BINOM : int \[1:4045608\] 0 0 0 0 0 0 0 0 0 0 …
+    
+    ## \$ MONTH : num \[1:4045608\] 1 1 1 1 1 1 1 1 1 1 …
+    
+    ## \$ SCHEDULED_DEPARTURE : num \[1:4045608\] 5 10 20 20 25 25 25 30 30 30 …
+    
+    ## \$ SCHEDULED_TIME : num \[1:4045608\] 205 280 286 285 235 217 181 273 195 221 …
+    
+    ## \$ ORIGIN_LATITUDE : num \[1:4045608\] 61.2 33.9 37.6 33.9 47.4 …
+    
+    ## \$ ORIGIN_LONGITUDE : num \[1:4045608\] -150 -118 -122 -118 -122 …
+    
+    ## \$ DESTINATION_LATITUDE : num \[1:4045608\] 47.4 26.7 35.2 25.8 61.2 …
+    
+    ## \$ DESTINATION_LONGITUDE: num \[1:4045608\] -122.3 -80.1 -80.9 -80.3 -150 …
+    
+    ## \$ DAY_OF_WEEK : Factor w/ 7 levels “1”,“2”,“3”,“4”,..: 4 4 4 4 4 4 4 4 4 4 …
+    
+    ## \$ AIRLINE : Factor w/ 14 levels “AA”,“AS”,“B6”,..: 2 1 12 1 2 4 9 12 1 4 …
+    
+    ## \$ ORIGIN_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 2 36 67 36 66 67 35 36 67 35 …
+    
+    ## \$ DESTINATION_AIRPORT : Factor w/ 76 levels “ABQ”,“ANC”,“ATL”,..: 66 54 15 44 2 46 46 15 21 3 …
 
 ``` r
 to_drop <- c(
@@ -257,11 +260,11 @@ df_final <- df_cleaned %>% select(-all_of(to_drop))
 names(df_final) 
 ```
 
-## \[1\] “ARRIVAL_DELAY_BINOM” “MONTH” “SCHEDULED_DEPARTURE”
-
-## \[4\] “SCHEDULED_TIME” “DAY_OF_WEEK” “AIRLINE”
-
-## \[7\] “ORIGIN_AIRPORT” “DESTINATION_AIRPORT”
+    ## \[1\] “ARRIVAL_DELAY_BINOM” “MONTH” “SCHEDULED_DEPARTURE”
+    
+    ## \[4\] “SCHEDULED_TIME” “DAY_OF_WEEK” “AIRLINE”
+    
+    ## \[7\] “ORIGIN_AIRPORT” “DESTINATION_AIRPORT”
 
 ``` r
 # Set modeling controls
@@ -466,57 +469,57 @@ fit_result <- glmm$stepwise_bic_glmm(
 fit_result$fit
 ```
 
-## Generalized linear mixed model fit by maximum likelihood (Adaptive
-
-## Gauss-Hermite Quadrature, nAGQ = 0) \[glmerMod\]
-
-## Family: binomial ( logit )
-
-## Formula:
-
-## ARRIVAL_DELAY_BINOM ~ I(SCHEDULED_DEPARTURE^2) + SCHEDULED_DEPARTURE:ORIGIN_LATITUDE +
-
-## SCHEDULED_DEPARTURE:SCHEDULED_TIME + SCHEDULED_DEPARTURE:ORIGIN_LONGITUDE +
-
-## SCHEDULED_DEPARTURE + (1 \| MONTH) + (1 \| AIRLINE) + (1 \|
-
-## ORIGIN_AIRPORT) + (1 \| DESTINATION_AIRPORT)
-
-## Data: d
-
-## AIC BIC logLik deviance df.resid
-
-## 10019.979 10089.282 -4999.989 9999.979 7548
-
-## Random effects:
-
-## Groups Name Std.Dev.
-
-## DESTINATION_AIRPORT (Intercept) 0.2102
-
-## ORIGIN_AIRPORT (Intercept) 0.2083
-
-## AIRLINE (Intercept) 0.2391
-
-## MONTH (Intercept) 0.1812
-
-## Number of obs: 7558, groups:
-
-## DESTINATION_AIRPORT, 76; ORIGIN_AIRPORT, 76; AIRLINE, 14; MONTH, 11
-
-## Fixed Effects:
-
-## (Intercept) I(SCHEDULED_DEPARTURE^2)
-
-## 0.07756 -0.12148
-
-## SCHEDULED_DEPARTURE SCHEDULED_DEPARTURE:ORIGIN_LATITUDE
-
-## 0.43755 -0.08058
-
-## SCHEDULED_DEPARTURE:SCHEDULED_TIME SCHEDULED_DEPARTURE:ORIGIN_LONGITUDE
-
-## -0.07600 0.07237
+    ## Generalized linear mixed model fit by maximum likelihood (Adaptive
+    
+    ## Gauss-Hermite Quadrature, nAGQ = 0) \[glmerMod\]
+    
+    ## Family: binomial ( logit )
+    
+    ## Formula:
+    
+    ## ARRIVAL_DELAY_BINOM ~ I(SCHEDULED_DEPARTURE^2) + SCHEDULED_DEPARTURE:ORIGIN_LATITUDE +
+    
+    ## SCHEDULED_DEPARTURE:SCHEDULED_TIME + SCHEDULED_DEPARTURE:ORIGIN_LONGITUDE +
+    
+    ## SCHEDULED_DEPARTURE + (1 \| MONTH) + (1 \| AIRLINE) + (1 \|
+    
+    ## ORIGIN_AIRPORT) + (1 \| DESTINATION_AIRPORT)
+    
+    ## Data: d
+    
+    ## AIC BIC logLik deviance df.resid
+    
+    ## 10019.979 10089.282 -4999.989 9999.979 7548
+    
+    ## Random effects:
+    
+    ## Groups Name Std.Dev.
+    
+    ## DESTINATION_AIRPORT (Intercept) 0.2102
+    
+    ## ORIGIN_AIRPORT (Intercept) 0.2083
+    
+    ## AIRLINE (Intercept) 0.2391
+    
+    ## MONTH (Intercept) 0.1812
+    
+    ## Number of obs: 7558, groups:
+    
+    ## DESTINATION_AIRPORT, 76; ORIGIN_AIRPORT, 76; AIRLINE, 14; MONTH, 11
+    
+    ## Fixed Effects:
+    
+    ## (Intercept) I(SCHEDULED_DEPARTURE^2)
+    
+    ## 0.07756 -0.12148
+    
+    ## SCHEDULED_DEPARTURE SCHEDULED_DEPARTURE:ORIGIN_LATITUDE
+    
+    ## 0.43755 -0.08058
+    
+    ## SCHEDULED_DEPARTURE:SCHEDULED_TIME SCHEDULED_DEPARTURE:ORIGIN_LONGITUDE
+    
+    ## -0.07600 0.07237
 
 ``` r
 # Visualize marginal effect of a predictor
